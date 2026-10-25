@@ -1,8 +1,8 @@
-"""Giao diện Flet 0.28 cho ứng dụng Xu Gọn."""
+"""Giao diện Flet cho ứng dụng CoinTrans (Tối ưu tiền xu Nhật)."""
 import flet as ft
 from core import DENOMS, suggest, load_wallet, save_wallet, load_settings, save_settings
 
-APP_NAME = "Xu Gọn"
+APP_NAME = "CoinTrans"
 
 def fmt(d):
     return f"{d:,}¥"
@@ -25,26 +25,31 @@ def main(page: ft.Page):
     count_inputs = {}
     subtotal_txts = {}
 
-    def refresh_wallet_ui():
+    def refresh_summary():
         total_yen = sum(d * n for d, n in wallet.items())
         total_coins = sum(n for d, n in wallet.items() if d < 1000)
         total_notes = sum(n for d, n in wallet.items() if d >= 1000)
         total_val_txt.value = fmt(total_yen)
         total_items_txt.value = f"Tiền giấy: {total_notes} tờ  |  Tiền xu: {total_coins} đồng"
+        page.update()
+
+    def refresh_wallet_ui():
         for d in DENOMS:
             n = wallet[d]
             if count_inputs[d].value != str(n):
                 count_inputs[d].value = str(n)
             subtotal_txts[d].value = f"= {fmt(d * n)}"
-        page.update()
+        refresh_summary()
 
     def adjust(d, delta):
         wallet[d] = max(0, wallet[d] + delta)
+        count_inputs[d].value = str(wallet[d])
+        subtotal_txts[d].value = f"= {fmt(d * wallet[d])}"
         save_wallet(wallet)
-        refresh_wallet_ui()
+        refresh_summary()
 
     def on_count_text_change(e, d):
-        val = e.control.value.strip()
+        val = (e.control.value or "").strip()
         if not val:
             n = 0
         else:
@@ -55,12 +60,7 @@ def main(page: ft.Page):
         wallet[d] = n
         save_wallet(wallet)
         subtotal_txts[d].value = f"= {fmt(d * n)}"
-        total_yen = sum(dm * c for dm, c in wallet.items())
-        total_coins = sum(c for dm, c in wallet.items() if dm < 1000)
-        total_notes = sum(c for dm, c in wallet.items() if dm >= 1000)
-        total_val_txt.value = fmt(total_yen)
-        total_items_txt.value = f"Tiền giấy: {total_notes} tờ  |  Tiền xu: {total_coins} đồng"
-        page.update()
+        refresh_summary()
 
     wallet_rows = []
     for d in DENOMS:
@@ -88,10 +88,13 @@ def main(page: ft.Page):
                     padding=ft.padding.symmetric(horizontal=12, vertical=6),
                     content=ft.Row([
                         ft.Icon(icon_type, color=ft.Colors.TEAL if is_note else ft.Colors.AMBER_800, size=24),
-                        ft.Column([
-                            ft.Text(fmt(d), size=17, weight=ft.FontWeight.W_600),
-                            subtotal_txts[d],
-                        ], spacing=2, expand=True),
+                        ft.Container(
+                            content=ft.Column([
+                                ft.Text(fmt(d), size=17, weight=ft.FontWeight.W_600),
+                                subtotal_txts[d],
+                            ], spacing=2),
+                            expand=True,
+                        ),
                         ft.IconButton(
                             icon=ft.Icons.REMOVE_CIRCLE_OUTLINE,
                             icon_color=ft.Colors.RED_400,
@@ -128,7 +131,7 @@ def main(page: ft.Page):
         ft.Container(height=4),
         *wallet_rows,
         ft.Container(height=16),
-    ], expand=True, padding=12)
+    ], expand=True, padding=12, visible=True)
 
     # ==========================
     # 2. TAB TRẢ TIỀN
@@ -307,33 +310,34 @@ def main(page: ft.Page):
         ft.Container(height=8),
         confirm_btn,
         ft.Container(height=20),
-    ], expand=True, padding=12)
+    ], expand=True, padding=12, visible=False)
 
     # ==========================
     # 3. ĐIỀU HƯỚNG & SAFEARIA
     # ==========================
-    content_area = ft.Container(content=wallet_view, expand=True)
-
     def on_nav_change(e):
         idx = e.control.selected_index
+        wallet_view.visible = (idx == 0)
+        pay_view.visible = (idx == 1)
         if idx == 0:
-            content_area.content = wallet_view
             refresh_wallet_ui()
         else:
-            content_area.content = pay_view
             calc()
-            bill_in.focus()
+            try:
+                bill_in.focus()
+            except Exception:
+                pass
         page.update()
 
     page.navigation_bar = ft.NavigationBar(
         selected_index=0,  # Mặc định mở ra là màn Ví
         destinations=[
-            ft.NavigationDestination(
+            ft.NavigationBarDestination(
                 icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
                 selected_icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
                 label="Ví",
             ),
-            ft.NavigationDestination(
+            ft.NavigationBarDestination(
                 icon=ft.Icons.PAYMENTS_OUTLINED,
                 selected_icon=ft.Icons.PAYMENTS,
                 label="Trả tiền",
@@ -344,7 +348,10 @@ def main(page: ft.Page):
 
     page.add(
         ft.SafeArea(
-            content=content_area,
+            content=ft.Stack(
+                controls=[wallet_view, pay_view],
+                expand=True,
+            ),
             expand=True,
         )
     )

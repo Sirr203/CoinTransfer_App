@@ -1,14 +1,14 @@
 [project]
-name = "xu_optimizer"
+name = "cointrans"
 version = "0.2.0"
 description = "Tối ưu trả tiền xu tại Nhật (offline)"
 requires-python = ">=3.10"
 dependencies = ["flet==0.28.3"]
 
 [tool.flet]
-org = "com.example"
-product = "Xu Gọn"
-company = "You"
+org = "com.sirr"
+product = "CoinTrans"
+company = "Sirr"
 
 [tool.flet.app]
 path = "src"

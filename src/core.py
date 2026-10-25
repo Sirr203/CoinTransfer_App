@@ -106,8 +106,13 @@ def suggest(wallet, bill, prefer_notes=False):
 
 # ---- Lưu trữ JSON nội bộ ----
 def _path(filename="wallet.json"):
-    base = os.environ.get("FLET_APP_STORAGE_DATA", os.path.expanduser("~"))
-    os.makedirs(base, exist_ok=True)
+    base = os.environ.get("FLET_APP_STORAGE_DATA")
+    if not base or not os.path.exists(base):
+        base = os.path.expanduser("~")
+    try:
+        os.makedirs(base, exist_ok=True)
+    except Exception:
+        pass
     return os.path.join(base, filename)
 
 def load_wallet():
@@ -119,24 +124,12 @@ def load_wallet():
         return {d: 0 for d in DENOMS}
 
 def save_wallet(wallet):
-    tmp = _path("wallet.json") + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({str(d): n for d, n in wallet.items()}, f)
-    os.replace(tmp, _path("wallet.json"))
-
-def load_settings():
     try:
-        with open(_path("settings.json"), encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return {"prefer_notes": False}
-
-def save_settings(settings):
-    try:
-        tmp = _path("settings.json") + ".tmp"
+        target = _path("wallet.json")
+        tmp = target + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(settings, f)
-        os.replace(tmp, _path("settings.json"))
+            json.dump({str(d): n for d, n in wallet.items()}, f)
+        os.replace(tmp, target)
     except Exception:
         pass
 
@@ -149,10 +142,10 @@ def load_settings():
 
 def save_settings(settings):
     try:
-        tmp = _path("settings.json") + ".tmp"
+        target = _path("settings.json")
+        tmp = target + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(settings, f)
-        os.replace(tmp, _path("settings.json"))
+        os.replace(tmp, target)
     except Exception:
         pass
-
