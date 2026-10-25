@@ -1,16 +1,15 @@
 [project]
 name = "xu_optimizer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Tối ưu trả tiền xu tại Nhật (offline)"
 requires-python = ">=3.10"
 dependencies = ["flet==0.28.3"]
 
 [tool.flet]
 org = "com.example"
-product = "Xu Optimizer"
+product = "Xu Gọn"
 company = "You"
 
 [tool.flet.app]
 path = "src"
 module = "main"
-

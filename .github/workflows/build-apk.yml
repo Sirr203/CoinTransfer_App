@@ -31,11 +31,11 @@ jobs:
         run: pip install "flet[all]==0.28.3"
 
       - name: Build Android APK
-        run: flet build apk -v
+        run: flet build apk --build-number ${{ github.run_number }} -v
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xu-optimizer-apk
+          name: xu-gon-apk
           path: build/apk/*.apk
           if-no-files-found: error
