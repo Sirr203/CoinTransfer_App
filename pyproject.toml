@@ -3,7 +3,10 @@ name = "xu_optimizer"
 version = "0.1.0"
 description = "Tối ưu trả tiền xu tại Nhật (offline)"
 requires-python = ">=3.10"
-dependencies = ["flet==0.28.3"]
+dependencies = [
+    "flet==0.28.3",
+    "flet-cli==0.28.3",
+]
 
 [tool.flet]
 org = "com.example"
