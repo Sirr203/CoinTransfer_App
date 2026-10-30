@@ -8,6 +8,17 @@ from i18n import (
     format_breakdown_summary,
     detect_device_language,
 )
+from history import (
+    load_history,
+    create_entry,
+    add_entry,
+    delete_entry,
+    undo_last_payment,
+    clear_history,
+    get_monthly_summary,
+    format_entry_date_group,
+    format_month_label,
+)
 
 APP_NAME = "CoinTrans"
 
@@ -22,6 +33,7 @@ def main(page: ft.Page):
 
     wallet = load_wallet()
     settings = load_settings()
+    history_entries = load_history()
     current_lang = settings.get("language") or detect_device_language()
     state = {"result": None}
 
@@ -308,11 +320,33 @@ def main(page: ft.Page):
     mode_switch.on_change = on_mode_change
 
     def do_confirm(e):
+        nonlocal history_entries
         r = state["result"]
         if not r: return
+        raw = (bill_in.value or "").strip().replace(",", "").replace(".", "").replace("¥", "")
+        bill_amount = int(raw)
+
+        # 1. Update wallet balance
         for d in DENOMS:
             wallet[d] = r["after"].get(d, 0)
         save_wallet(wallet)
+
+        # 2. Record history entry
+        change_total = sum(d * n for d, n in r["change"].items())
+        wallet_total_after = sum(d * n for d, n in wallet.items())
+        mode_str = "optimize_notes" if mode_switch.value else "fast"
+        new_entry = create_entry(
+            bill=bill_amount,
+            total_paid=r["total_paid"],
+            change=change_total,
+            pay=r["pay"],
+            change_breakdown=r["change"],
+            mode=mode_str,
+            wallet_total_after=wallet_total_after,
+        )
+        history_entries = add_entry(history_entries, new_entry)
+
+        # 3. Reset pay UI & update wallet
         refresh_wallet_ui()
         bill_in.value = ""
         result_container.controls.clear()
@@ -341,20 +375,292 @@ def main(page: ft.Page):
     ], expand=True, padding=12, visible=False)
 
     # ==========================
-    # 3. NAVIGATION & SAFEARIA
+    # 3. HISTORY TAB
+    # ==========================
+    history_list_column = ft.Column(spacing=10)
+
+    def show_confirm_dialog(title: str, content: str, on_confirm_callback):
+        def handle_confirm(ev):
+            dlg.open = False
+            page.update()
+            on_confirm_callback()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(title, weight=ft.FontWeight.BOLD),
+            content=ft.Text(content),
+            actions=[
+                ft.TextButton(
+                    t("dialog_cancel", current_lang),
+                    on_click=lambda ev: close_dialog(dlg),
+                ),
+                ft.ElevatedButton(
+                    t("dialog_confirm", current_lang),
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
+                    on_click=handle_confirm,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
+    def do_undo_payment():
+        nonlocal history_entries
+        history_entries, restored_wallet = undo_last_payment(history_entries, wallet)
+        for d in DENOMS:
+            wallet[d] = restored_wallet.get(d, 0)
+        save_wallet(wallet)
+        refresh_wallet_ui()
+        refresh_history_ui()
+        page.update()
+
+    def do_delete_single_entry(entry_id: str):
+        nonlocal history_entries
+        history_entries = delete_entry(history_entries, entry_id)
+        refresh_history_ui()
+        page.update()
+
+    def do_clear_all_history():
+        nonlocal history_entries
+        history_entries = clear_history()
+        refresh_history_ui()
+        page.update()
+
+    def refresh_history_ui():
+        history_list_column.controls.clear()
+
+        # Monthly summary card
+        summary = get_monthly_summary(history_entries)
+        month_label = format_month_label(summary["year"], summary["month"], current_lang)
+
+        clear_btn = ft.IconButton(
+            icon=ft.Icons.DELETE_SWEEP_OUTLINED,
+            icon_color=ft.Colors.RED_400,
+            tooltip=t("history_clear_all", current_lang),
+            visible=(len(history_entries) > 0),
+            on_click=lambda ev: show_confirm_dialog(
+                t("clear_dialog_title", current_lang),
+                t("clear_dialog_content", current_lang),
+                do_clear_all_history,
+            ),
+        )
+
+        summary_card = ft.Card(
+            elevation=2,
+            color=ft.Colors.TEAL_50,
+            content=ft.Container(
+                padding=16,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Text(
+                            t("history_summary_title", current_lang, month=month_label),
+                            size=14,
+                            color=ft.Colors.TEAL_800,
+                            weight=ft.FontWeight.W_500,
+                            expand=True,
+                        ),
+                        clear_btn,
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Text(
+                        fmt(summary["total_spent"]),
+                        size=24,
+                        weight=ft.FontWeight.BOLD,
+                        color=ft.Colors.TEAL_900,
+                    ),
+                    ft.Text(
+                        t("history_summary_count", current_lang, count=summary["payment_count"]),
+                        size=13,
+                        color=ft.Colors.GREY_700,
+                    ),
+                ], spacing=4),
+            ),
+        )
+        history_list_column.controls.append(summary_card)
+
+        # Empty state
+        if not history_entries:
+            empty_view = ft.Container(
+                padding=ft.padding.symmetric(vertical=48, horizontal=24),
+                alignment=ft.alignment.center,
+                content=ft.Column([
+                    ft.Icon(ft.Icons.RECEIPT_LONG_OUTLINED, size=64, color=ft.Colors.GREY_400),
+                    ft.Text(t("history_empty_title", current_lang), size=17, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_700),
+                    ft.Text(t("history_empty_subtitle", current_lang), size=13, color=ft.Colors.GREY_500, text_align=ft.TextAlign.CENTER),
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=8),
+            )
+            history_list_column.controls.append(empty_view)
+            page.update()
+            return
+
+        # Group entries by date
+        current_date_group = None
+        for idx, entry in enumerate(history_entries):
+            is_latest = (idx == 0)
+            date_group, time_str = format_entry_date_group(entry.get("timestamp", ""), current_lang)
+
+            if date_group != current_date_group:
+                current_date_group = date_group
+                history_list_column.controls.append(
+                    ft.Container(
+                        padding=ft.padding.only(left=4, top=14, bottom=2),
+                        content=ft.Text(
+                            date_group,
+                            size=13,
+                            weight=ft.FontWeight.BOLD,
+                            color=ft.Colors.TEAL_800,
+                        ),
+                    )
+                )
+
+            # Details for expanded row
+            pay_lines = []
+            for d_str, count in entry.get("pay", {}).items():
+                d = int(d_str)
+                unit_str = format_count_unit(count, is_note=(d >= 1000), lang=current_lang)
+                pay_lines.append(
+                    ft.Text(f"• {fmt(d)} × {unit_str}", size=14, color=ft.Colors.GREY_800)
+                )
+
+            change_lines = []
+            change_bd = entry.get("change_breakdown", {})
+            if change_bd:
+                for d_str, count in change_bd.items():
+                    d = int(d_str)
+                    unit_str = format_count_unit(count, is_note=(d >= 1000), lang=current_lang)
+                    change_lines.append(
+                        ft.Text(f"• {fmt(d)} × {unit_str}", size=14, color=ft.Colors.BLUE_800)
+                    )
+            else:
+                change_lines.append(
+                    ft.Text(t("exact_change_none", current_lang), size=14, color=ft.Colors.GREY_600)
+                )
+
+            mode_text = (
+                t("history_mode_notes", current_lang)
+                if entry.get("mode") == "optimize_notes"
+                else t("history_mode_fast", current_lang)
+            )
+
+            # Action buttons for expanded view
+            action_buttons = []
+            if is_latest:
+                undo_btn = ft.OutlinedButton(
+                    content=ft.Row([
+                        ft.Icon(ft.Icons.UNDO, size=16, color=ft.Colors.AMBER_900),
+                        ft.Text(t("history_undo_button", current_lang), size=13, color=ft.Colors.AMBER_900),
+                    ], spacing=4),
+                    style=ft.ButtonStyle(
+                        side=ft.BorderSide(1, ft.Colors.AMBER_400),
+                        shape=ft.RoundedRectangleBorder(radius=8),
+                    ),
+                    on_click=lambda ev: show_confirm_dialog(
+                        t("undo_dialog_title", current_lang),
+                        t("undo_dialog_content", current_lang),
+                        do_undo_payment,
+                    ),
+                )
+                action_buttons.append(undo_btn)
+
+            del_btn = ft.IconButton(
+                icon=ft.Icons.DELETE_OUTLINE,
+                icon_color=ft.Colors.RED_400,
+                icon_size=20,
+                tooltip=t("history_delete_button", current_lang),
+                on_click=lambda ev, eid=entry.get("id"): do_delete_single_entry(eid),
+            )
+            action_buttons.append(del_btn)
+
+            expanded_content = ft.Container(
+                padding=ft.padding.symmetric(horizontal=12, vertical=8),
+                bgcolor=ft.Colors.GREY_50,
+                border_radius=8,
+                content=ft.Column([
+                    ft.Row([
+                        ft.Container(
+                            padding=ft.padding.symmetric(horizontal=8, vertical=2),
+                            border_radius=6,
+                            bgcolor=ft.Colors.TEAL_100,
+                            content=ft.Text(mode_text, size=11, color=ft.Colors.TEAL_900, weight=ft.FontWeight.W_500),
+                        ),
+                        ft.Text(
+                            t("history_wallet_after", current_lang, amount=fmt(entry.get("wallet_total_after", 0))),
+                            size=12,
+                            color=ft.Colors.GREY_600,
+                        ),
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    ft.Divider(height=8, color=ft.Colors.GREY_200),
+                    ft.Text(t("give_title", current_lang), size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_800),
+                    *pay_lines,
+                    ft.Container(height=4),
+                    ft.Text(t("change_title", current_lang), size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_800),
+                    *change_lines,
+                    ft.Divider(height=8, color=ft.Colors.GREY_200),
+                    ft.Row(action_buttons, alignment=ft.MainAxisAlignment.END, spacing=8),
+                ], spacing=4),
+            )
+
+            tile = ft.ExpansionTile(
+                leading=ft.Icon(
+                    ft.Icons.PAYMENTS_OUTLINED,
+                    color=ft.Colors.TEAL_700,
+                    size=24,
+                ),
+                title=ft.Text(
+                    fmt(entry.get("bill", 0)),
+                    size=17,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.TEAL_900,
+                ),
+                subtitle=ft.Text(
+                    f"{time_str}  •  {t('history_change_label', current_lang, amount=fmt(entry.get('change', 0)))}",
+                    size=12,
+                    color=ft.Colors.GREY_600,
+                ),
+                trailing=ft.Text(
+                    t("history_paid_label", current_lang, amount=fmt(entry.get("total_paid", 0))),
+                    size=13,
+                    weight=ft.FontWeight.W_500,
+                    color=ft.Colors.GREY_800,
+                ),
+                controls=[expanded_content],
+                tile_padding=ft.padding.symmetric(horizontal=12, vertical=0),
+                shape=ft.RoundedRectangleBorder(radius=10),
+                collapsed_shape=ft.RoundedRectangleBorder(radius=10),
+            )
+
+            history_list_column.controls.append(
+                ft.Card(
+                    elevation=1,
+                    content=tile,
+                )
+            )
+
+        page.update()
+
+    history_view = ft.ListView([
+        history_list_column,
+        ft.Container(height=24),
+    ], expand=True, padding=12, visible=False)
+
+    # ==========================
+    # 4. NAVIGATION & SAFEARIA
     # ==========================
     def on_nav_change(e):
         idx = e.control.selected_index
         wallet_view.visible = (idx == 0)
         pay_view.visible = (idx == 1)
+        history_view.visible = (idx == 2)
         if idx == 0:
             refresh_wallet_ui()
-        else:
+        elif idx == 1:
             calc()
             try:
                 bill_in.focus()
             except Exception:
                 pass
+        elif idx == 2:
+            refresh_history_ui()
         page.update()
 
     nav_destinations = [
@@ -368,6 +674,11 @@ def main(page: ft.Page):
             selected_icon=ft.Icons.PAYMENTS,
             label=t("nav_pay", current_lang),
         ),
+        ft.NavigationBarDestination(
+            icon=ft.Icons.HISTORY_OUTLINED,
+            selected_icon=ft.Icons.HISTORY,
+            label=t("nav_history", current_lang),
+        ),
     ]
 
     page.navigation_bar = ft.NavigationBar(
@@ -377,7 +688,7 @@ def main(page: ft.Page):
     )
 
     # ==========================
-    # 4. LANGUAGE PICKER & REFRESH
+    # 5. LANGUAGE PICKER & REFRESH
     # ==========================
     def update_all_ui():
         wallet_summary_title_txt.value = t("wallet_summary_title", current_lang)
@@ -390,8 +701,10 @@ def main(page: ft.Page):
         confirm_btn_text.value = t("confirm_paid", current_lang)
         nav_destinations[0].label = t("nav_wallet", current_lang)
         nav_destinations[1].label = t("nav_pay", current_lang)
+        nav_destinations[2].label = t("nav_history", current_lang)
         refresh_wallet_ui()
         calc()
+        refresh_history_ui()
         page.update()
 
     def open_language_picker(e):
@@ -407,7 +720,7 @@ def main(page: ft.Page):
         tiles = [
             ft.ListTile(
                 title=ft.Text(
-                    name,
+                    t("lang_name", code),
                     size=16,
                     weight=ft.FontWeight.BOLD if code == current_lang else ft.FontWeight.NORMAL,
                     color=ft.Colors.TEAL_800 if code == current_lang else ft.Colors.BLACK87,
@@ -415,7 +728,7 @@ def main(page: ft.Page):
                 trailing=ft.Icon(ft.Icons.CHECK, color=ft.Colors.TEAL) if code == current_lang else None,
                 on_click=lambda ev, c=code: select_language(c),
             )
-            for code, name in SUPPORTED_LANGUAGES
+            for code in SUPPORTED_LANGUAGES
         ]
 
         dlg = ft.AlertDialog(
@@ -442,7 +755,7 @@ def main(page: ft.Page):
     page.add(
         ft.SafeArea(
             content=ft.Stack(
-                controls=[wallet_view, pay_view],
+                controls=[wallet_view, pay_view, history_view],
                 expand=True,
             ),
             expand=True,

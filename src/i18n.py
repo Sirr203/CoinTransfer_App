@@ -4,16 +4,20 @@ Supports English (default), Japanese, and Vietnamese.
 Pure Python, zero external dependencies.
 """
 import os
-import re
 
-SUPPORTED_LANGUAGES = [
-    ("en", "English"),
-    ("ja", "日本語"),
-    ("vi", "Tiếng Việt"),
-]
+SUPPORTED_LANGUAGES = ["en", "ja", "vi"]
 
 TRANSLATIONS = {
     "en": {
+        # Language display name
+        "lang_name": "English",
+
+        # Units
+        "unit_bill_single": "bill",
+        "unit_bill_plural": "bills",
+        "unit_coin_single": "coin",
+        "unit_coin_plural": "coins",
+
         # Navigation
         "nav_wallet": "Wallet",
         "nav_pay": "Pay",
@@ -67,6 +71,15 @@ TRANSLATIONS = {
         "dialog_cancel": "Cancel",
     },
     "ja": {
+        # Language display name
+        "lang_name": "日本語",
+
+        # Units
+        "unit_bill_single": "枚",
+        "unit_bill_plural": "枚",
+        "unit_coin_single": "枚",
+        "unit_coin_plural": "枚",
+
         # Navigation
         "nav_wallet": "財布",
         "nav_pay": "支払い",
@@ -120,6 +133,15 @@ TRANSLATIONS = {
         "dialog_cancel": "キャンセル",
     },
     "vi": {
+        # Language display name
+        "lang_name": "Tiếng Việt",
+
+        # Units
+        "unit_bill_single": "tờ",
+        "unit_bill_plural": "tờ",
+        "unit_coin_single": "đồng",
+        "unit_coin_plural": "đồng",
+
         # Navigation
         "nav_wallet": "Ví",
         "nav_pay": "Trả tiền",
@@ -187,17 +209,14 @@ def t(key: str, lang: str = "en", **params) -> str:
 
 def format_count_unit(count: int, is_note: bool, lang: str = "en") -> str:
     """Formats count with language-specific unit words (including English singular/plural)."""
-    if lang == "ja":
-        return f"{count}枚"
-    if lang == "vi":
-        unit = "tờ" if is_note else "đồng"
-        return f"{count} {unit}"
-    # Default to English
     if is_note:
-        unit = "bill" if count == 1 else "bills"
+        unit_key = "unit_bill_single" if count == 1 else "unit_bill_plural"
     else:
-        unit = "coin" if count == 1 else "coins"
-    return f"{count} {unit}"
+        unit_key = "unit_coin_single" if count == 1 else "unit_coin_plural"
+    unit_str = t(unit_key, lang)
+    if lang == "ja":
+        return f"{count}{unit_str}"
+    return f"{count} {unit_str}"
 
 def format_breakdown_summary(notes_count: int, coins_count: int, lang: str = "en") -> str:
     """Formats the wallet summary breakdown line."""
