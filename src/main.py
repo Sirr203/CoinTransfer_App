@@ -1,4 +1,4 @@
-"""Giao diện Flet cho ứng dụng CoinTrans (Tối ưu tiền xu Nhật)."""
+"""Flet user interface for CoinTrans (offline Japanese coin payment optimizer)."""
 import flet as ft
 from core import DENOMS, suggest, load_wallet, save_wallet, load_settings, save_settings
 
@@ -18,7 +18,7 @@ def main(page: ft.Page):
     state = {"result": None}
 
     # ==========================
-    # 1. TAB VÍ
+    # 1. WALLET TAB
     # ==========================
     total_val_txt = ft.Text("0¥", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_800)
     total_items_txt = ft.Text("0 tờ/xu", size=13, color=ft.Colors.GREY_700)
@@ -134,7 +134,7 @@ def main(page: ft.Page):
     ], expand=True, padding=12, visible=True)
 
     # ==========================
-    # 2. TAB TRẢ TIỀN
+    # 2. PAY TAB
     # ==========================
     bill_in = ft.TextField(
         label="Số tiền hóa đơn",
@@ -232,7 +232,7 @@ def main(page: ft.Page):
 
             change_total = sum(d * n for d, n in r["change"].items())
 
-            # Khối ĐƯA (Teal)
+            # Hand Over card (Teal)
             pay_card = ft.Container(
                 padding=14,
                 border_radius=12,
@@ -249,7 +249,7 @@ def main(page: ft.Page):
                 ], spacing=6),
             )
 
-            # Khối NHẬN LẠI (Blue)
+            # Change card (Blue)
             change_card = ft.Container(
                 padding=14,
                 border_radius=12,
@@ -313,7 +313,7 @@ def main(page: ft.Page):
     ], expand=True, padding=12, visible=False)
 
     # ==========================
-    # 3. ĐIỀU HƯỚNG & SAFEARIA
+    # 3. NAVIGATION & SAFEARIA
     # ==========================
     def on_nav_change(e):
         idx = e.control.selected_index
@@ -330,7 +330,7 @@ def main(page: ft.Page):
         page.update()
 
     page.navigation_bar = ft.NavigationBar(
-        selected_index=0,  # Mặc định mở ra là màn Ví
+        selected_index=0,  # Default to Wallet screen
         destinations=[
             ft.NavigationBarDestination(
                 icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,

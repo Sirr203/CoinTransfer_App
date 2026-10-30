@@ -1,7 +1,7 @@
 [project]
 name = "cointrans"
-version = "0.2.0"
-description = "Tối ưu trả tiền xu tại Nhật (offline)"
+version = "0.3.0"
+description = "Offline Japanese coin payment optimizer"
 requires-python = ">=3.10"
 dependencies = ["flet==0.28.3"]
 

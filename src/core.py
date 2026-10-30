@@ -1,14 +1,14 @@
-"""Thuật toán tối ưu + đọc/ghi dữ liệu ví (thuần Python, không phụ thuộc Flet)."""
+"""Payment optimization algorithm and wallet persistence (pure Python, Flet-independent)."""
 import json, os
 
 DENOMS = [10000, 5000, 1000, 500, 100, 50, 10, 5, 1]
-W_COIN, W_NOTE, W_HAND = 10, 2, 1   # Trọng số cho chế độ dọn xu (tối ưu tiền giấy)
-MAX_EXTRA = 10000                   # Không đưa dư quá mức này
+W_COIN, W_NOTE, W_HAND = 10, 2, 1   # Penalty weights for note-optimization mode (coin cleanup)
+MAX_EXTRA = 10000                   # Do not consider overpaying beyond this surplus
 
 def _w(d): return W_NOTE if d >= 1000 else W_COIN
 
 def make_change(c):
-    """Quầy thu ngân trả lại theo greedy (ít tờ/xu nhất)."""
+    """Greedy change calculation by the cash register (fewest bills/coins)."""
     out = {}
     for d in DENOMS:
         out[d], c = divmod(c, d)
@@ -21,12 +21,12 @@ def _change_count(c):
     return sum(make_change(c).values())
 
 def suggest(wallet, bill, prefer_notes=False):
-    """Gợi ý cách trả tiền.
-    wallet: {mệnh giá: số lượng}
-    bill: số tiền hóa đơn
+    """Suggests an optimal payment combination.
+    wallet: {denomination: count}
+    bill: invoice amount
     prefer_notes:
-      - False (Mặc định - Nhanh): Đưa và nhận lại ít tờ/xu nhất. Hóa đơn 10¥ đưa đúng 1 xu 10¥.
-      - True (Tối ưu tiền giấy / Dọn xu): Ưu tiên tống khứ xu lẻ, đổi xu thành tiền giấy.
+      - False (Default - Fast): Minimize total bills/coins handed + received.
+      - True (Optimize Notes): Shed loose coins to receive higher-denomination bills/coins.
     """
     total = sum(d * n for d, n in wallet.items())
     if bill <= 0 or total < bill:
@@ -34,7 +34,7 @@ def suggest(wallet, bill, prefer_notes=False):
     smax = min(total, bill + MAX_EXTRA)
 
     if prefer_notes:
-        # Chế độ dọn xu (logic cũ tối ưu độ nặng ví)
+        # Note-optimization mode: Minimize post-transaction wallet weight
         NEG = float("-inf")
         dp = [NEG] * (smax + 1); dp[0] = 0
         choices = []
@@ -62,7 +62,7 @@ def suggest(wallet, bill, prefer_notes=False):
             if k: pay[DENOMS[i]] = k
             s -= k * DENOMS[i]
     else:
-        # Chế độ Mặc định (Nhanh): Tối thiểu hóa (số tờ/xu đưa đi + số tờ/xu nhận lại)
+        # Fast mode: Minimize (items handed over + change items received)
         INF = float("inf")
         dp = [INF] * (smax + 1); dp[0] = 0
         choices = []
@@ -81,7 +81,7 @@ def suggest(wallet, bill, prefer_notes=False):
             if dp[s] == INF: continue
             pay_items = dp[s]
             change_items = _change_count(s - bill)
-            # Chi phí chính: tổng số tờ/xu đưa + nhận; phụ: tiền thừa ít nhất
+            # Primary cost: total items handed + received; secondary: minimum change surplus
             cost = (pay_items + change_items) * 100000 + (s - bill)
             if best_cost is None or cost < best_cost:
                 best_s, best_cost = s, cost
@@ -104,7 +104,7 @@ def suggest(wallet, bill, prefer_notes=False):
         "after": after,
     }
 
-# ---- Lưu trữ JSON nội bộ ----
+# ---- Internal JSON Storage ----
 def _path(filename="wallet.json"):
     base = os.environ.get("FLET_APP_STORAGE_DATA")
     if not base or not os.path.exists(base):
