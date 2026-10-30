@@ -172,3 +172,4 @@ def format_month_label(year: int, month: int, lang: str = "en") -> str:
         return d.strftime("%b %Y")
     except Exception:
         return f"{month:02d}/{year}"
+

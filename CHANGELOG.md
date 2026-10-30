@@ -38,3 +38,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local atomic JSON wallet persistence (`wallet.json`).
 - Core unit test suite.
 - GitHub Actions workflow for building Android APKs with Flutter and Flet.
+
