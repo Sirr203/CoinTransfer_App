@@ -136,9 +136,16 @@ def save_wallet(wallet):
 def load_settings():
     try:
         with open(_path("settings.json"), encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+            if not isinstance(data, dict):
+                data = {}
     except Exception:
-        return {"prefer_notes": False}
+        data = {}
+    from i18n import detect_device_language
+    return {
+        "prefer_notes": bool(data.get("prefer_notes", False)),
+        "language": data.get("language") or detect_device_language(),
+    }
 
 def save_settings(settings):
     try:

@@ -1,6 +1,13 @@
 """Flet user interface for CoinTrans (offline Japanese coin payment optimizer)."""
 import flet as ft
 from core import DENOMS, suggest, load_wallet, save_wallet, load_settings, save_settings
+from i18n import (
+    SUPPORTED_LANGUAGES,
+    t,
+    format_count_unit,
+    format_breakdown_summary,
+    detect_device_language,
+)
 
 APP_NAME = "CoinTrans"
 
@@ -15,13 +22,15 @@ def main(page: ft.Page):
 
     wallet = load_wallet()
     settings = load_settings()
+    current_lang = settings.get("language") or detect_device_language()
     state = {"result": None}
 
     # ==========================
     # 1. WALLET TAB
     # ==========================
     total_val_txt = ft.Text("0¥", size=24, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_800)
-    total_items_txt = ft.Text("0 tờ/xu", size=13, color=ft.Colors.GREY_700)
+    total_items_txt = ft.Text("", size=13, color=ft.Colors.GREY_700)
+    wallet_summary_title_txt = ft.Text("", size=14, color=ft.Colors.TEAL_800, weight=ft.FontWeight.W_500, expand=True)
     count_inputs = {}
     subtotal_txts = {}
 
@@ -30,7 +39,7 @@ def main(page: ft.Page):
         total_coins = sum(n for d, n in wallet.items() if d < 1000)
         total_notes = sum(n for d, n in wallet.items() if d >= 1000)
         total_val_txt.value = fmt(total_yen)
-        total_items_txt.value = f"Tiền giấy: {total_notes} tờ  |  Tiền xu: {total_coins} đồng"
+        total_items_txt.value = format_breakdown_summary(total_notes, total_coins, current_lang)
         page.update()
 
     def refresh_wallet_ui():
@@ -38,13 +47,13 @@ def main(page: ft.Page):
             n = wallet[d]
             if count_inputs[d].value != str(n):
                 count_inputs[d].value = str(n)
-            subtotal_txts[d].value = f"= {fmt(d * n)}"
+            subtotal_txts[d].value = t("subtotal_format", current_lang, amount=fmt(d * n))
         refresh_summary()
 
     def adjust(d, delta):
         wallet[d] = max(0, wallet[d] + delta)
         count_inputs[d].value = str(wallet[d])
-        subtotal_txts[d].value = f"= {fmt(d * wallet[d])}"
+        subtotal_txts[d].value = t("subtotal_format", current_lang, amount=fmt(d * wallet[d]))
         save_wallet(wallet)
         refresh_summary()
 
@@ -59,12 +68,12 @@ def main(page: ft.Page):
                 n = wallet[d]
         wallet[d] = n
         save_wallet(wallet)
-        subtotal_txts[d].value = f"= {fmt(d * n)}"
+        subtotal_txts[d].value = t("subtotal_format", current_lang, amount=fmt(d * n))
         refresh_summary()
 
     wallet_rows = []
     for d in DENOMS:
-        subtotal_txts[d] = ft.Text(f"= {fmt(d * wallet[d])}", size=12, color=ft.Colors.GREY_600)
+        subtotal_txts[d] = ft.Text(t("subtotal_format", current_lang, amount=fmt(d * wallet[d])), size=12, color=ft.Colors.GREY_600)
         field = ft.TextField(
             value=str(wallet[d]),
             width=58,
@@ -113,13 +122,23 @@ def main(page: ft.Page):
             )
         )
 
+    settings_btn = ft.IconButton(
+        icon=ft.Icons.SETTINGS_OUTLINED,
+        icon_color=ft.Colors.TEAL_800,
+        icon_size=22,
+        tooltip=t("settings_tooltip", current_lang),
+    )
+
     wallet_summary_card = ft.Card(
         elevation=2,
         color=ft.Colors.TEAL_50,
         content=ft.Container(
             padding=16,
             content=ft.Column([
-                ft.Text("Tổng số dư trong ví", size=13, color=ft.Colors.TEAL_700),
+                ft.Row([
+                    wallet_summary_title_txt,
+                    settings_btn,
+                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                 total_val_txt,
                 total_items_txt,
             ], spacing=4),
@@ -137,8 +156,8 @@ def main(page: ft.Page):
     # 2. PAY TAB
     # ==========================
     bill_in = ft.TextField(
-        label="Số tiền hóa đơn",
-        hint_text="0",
+        label=t("bill_label", current_lang),
+        hint_text=t("bill_hint", current_lang),
         suffix_text="¥",
         keyboard_type=ft.KeyboardType.NUMBER,
         text_size=30,
@@ -148,21 +167,22 @@ def main(page: ft.Page):
     )
 
     mode_switch = ft.Switch(
-        label="Tối ưu tiền giấy (dọn xu)",
+        label=t("mode_switch_label", current_lang),
         value=settings.get("prefer_notes", False),
         active_color=ft.Colors.TEAL,
     )
     mode_hint = ft.Text(
-        "Mặc định: Đưa & nhận ít tờ/xu nhất (nhanh)" if not mode_switch.value else "Đang bật: Ưu tiên tống khứ xu để dọn ví",
+        t("mode_hint_notes", current_lang) if mode_switch.value else t("mode_hint_fast", current_lang),
         size=12,
         color=ft.Colors.GREY_600,
     )
 
     result_container = ft.Column(spacing=12)
+    confirm_btn_text = ft.Text(t("confirm_paid", current_lang), size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE)
     confirm_btn = ft.ElevatedButton(
         content=ft.Row([
             ft.Icon(ft.Icons.CHECK_CIRCLE, color=ft.Colors.WHITE),
-            ft.Text("Xác nhận đã trả", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+            confirm_btn_text,
         ], alignment=ft.MainAxisAlignment.CENTER),
         visible=False,
         height=54,
@@ -200,7 +220,13 @@ def main(page: ft.Page):
                     border=ft.border.all(1, ft.Colors.RED_200),
                     content=ft.Row([
                         ft.Icon(ft.Icons.ERROR_OUTLINE, color=ft.Colors.RED, size=26),
-                        ft.Text("Không đủ tiền trong ví để trả hóa đơn này!", color=ft.Colors.RED_800, size=15, weight=ft.FontWeight.W_500, expand=True),
+                        ft.Text(
+                            t("error_insufficient", current_lang),
+                            color=ft.Colors.RED_800,
+                            size=15,
+                            weight=ft.FontWeight.W_500,
+                            expand=True,
+                        ),
                     ]),
                 )
             )
@@ -208,11 +234,11 @@ def main(page: ft.Page):
             state["result"] = r
             pay_lines = []
             for d, n in r["pay"].items():
-                unit = "tờ" if d >= 1000 else "đồng"
+                unit_str = format_count_unit(n, is_note=(d >= 1000), lang=current_lang)
                 pay_lines.append(
                     ft.Row([
                         ft.Text(f"• {fmt(d)}", size=18, weight=ft.FontWeight.W_600),
-                        ft.Text(f"× {n} {unit}", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_900),
+                        ft.Text(f"× {unit_str}", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_900),
                         ft.Text(f"({fmt(d * n)})", size=14, color=ft.Colors.GREY_600),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                 )
@@ -220,15 +246,15 @@ def main(page: ft.Page):
             change_lines = []
             if r["change"]:
                 for d, n in r["change"].items():
-                    unit = "tờ" if d >= 1000 else "đồng"
+                    unit_str = format_count_unit(n, is_note=(d >= 1000), lang=current_lang)
                     change_lines.append(
                         ft.Row([
                             ft.Text(f"• {fmt(d)}", size=17, weight=ft.FontWeight.W_600),
-                            ft.Text(f"× {n} {unit}", size=17, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
+                            ft.Text(f"× {unit_str}", size=17, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
                     )
             else:
-                change_lines.append(ft.Text("0¥ (Trả vừa đủ, không thối)", size=16, color=ft.Colors.GREY_700))
+                change_lines.append(ft.Text(t("exact_change_none", current_lang), size=16, color=ft.Colors.GREY_700))
 
             change_total = sum(d * n for d, n in r["change"].items())
 
@@ -241,7 +267,7 @@ def main(page: ft.Page):
                 content=ft.Column([
                     ft.Row([
                         ft.Icon(ft.Icons.ARROW_UPWARD, color=ft.Colors.TEAL_800),
-                        ft.Text("ĐƯA CHO THU NGÂN", size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_800),
+                        ft.Text(t("give_title", current_lang), size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_800),
                         ft.Text(fmt(r["total_paid"]), size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.TEAL_900),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(color=ft.Colors.TEAL_200, height=12),
@@ -258,7 +284,7 @@ def main(page: ft.Page):
                 content=ft.Column([
                     ft.Row([
                         ft.Icon(ft.Icons.ARROW_DOWNWARD, color=ft.Colors.BLUE_800),
-                        ft.Text("NHẬN LẠI", size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_800),
+                        ft.Text(t("change_title", current_lang), size=15, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_800),
                         ft.Text(fmt(change_total), size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Divider(color=ft.Colors.BLUE_200, height=12),
@@ -274,7 +300,9 @@ def main(page: ft.Page):
     def on_mode_change(e):
         settings["prefer_notes"] = mode_switch.value
         save_settings(settings)
-        mode_hint.value = "Đang bật: Ưu tiên tống khứ xu để dọn ví" if mode_switch.value else "Mặc định: Đưa & nhận ít tờ/xu nhất (nhanh)"
+        mode_hint.value = (
+            t("mode_hint_notes", current_lang) if mode_switch.value else t("mode_hint_fast", current_lang)
+        )
         calc()
 
     mode_switch.on_change = on_mode_change
@@ -329,22 +357,87 @@ def main(page: ft.Page):
                 pass
         page.update()
 
+    nav_destinations = [
+        ft.NavigationBarDestination(
+            icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
+            selected_icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
+            label=t("nav_wallet", current_lang),
+        ),
+        ft.NavigationBarDestination(
+            icon=ft.Icons.PAYMENTS_OUTLINED,
+            selected_icon=ft.Icons.PAYMENTS,
+            label=t("nav_pay", current_lang),
+        ),
+    ]
+
     page.navigation_bar = ft.NavigationBar(
         selected_index=0,  # Default to Wallet screen
-        destinations=[
-            ft.NavigationBarDestination(
-                icon=ft.Icons.ACCOUNT_BALANCE_WALLET_OUTLINED,
-                selected_icon=ft.Icons.ACCOUNT_BALANCE_WALLET,
-                label="Ví",
-            ),
-            ft.NavigationBarDestination(
-                icon=ft.Icons.PAYMENTS_OUTLINED,
-                selected_icon=ft.Icons.PAYMENTS,
-                label="Trả tiền",
-            ),
-        ],
+        destinations=nav_destinations,
         on_change=on_nav_change,
     )
+
+    # ==========================
+    # 4. LANGUAGE PICKER & REFRESH
+    # ==========================
+    def update_all_ui():
+        wallet_summary_title_txt.value = t("wallet_summary_title", current_lang)
+        settings_btn.tooltip = t("settings_tooltip", current_lang)
+        bill_in.label = t("bill_label", current_lang)
+        mode_switch.label = t("mode_switch_label", current_lang)
+        mode_hint.value = (
+            t("mode_hint_notes", current_lang) if mode_switch.value else t("mode_hint_fast", current_lang)
+        )
+        confirm_btn_text.value = t("confirm_paid", current_lang)
+        nav_destinations[0].label = t("nav_wallet", current_lang)
+        nav_destinations[1].label = t("nav_pay", current_lang)
+        refresh_wallet_ui()
+        calc()
+        page.update()
+
+    def open_language_picker(e):
+        def select_language(code):
+            nonlocal current_lang
+            current_lang = code
+            settings["language"] = current_lang
+            save_settings(settings)
+            dlg.open = False
+            update_all_ui()
+            page.update()
+
+        tiles = [
+            ft.ListTile(
+                title=ft.Text(
+                    name,
+                    size=16,
+                    weight=ft.FontWeight.BOLD if code == current_lang else ft.FontWeight.NORMAL,
+                    color=ft.Colors.TEAL_800 if code == current_lang else ft.Colors.BLACK87,
+                ),
+                trailing=ft.Icon(ft.Icons.CHECK, color=ft.Colors.TEAL) if code == current_lang else None,
+                on_click=lambda ev, c=code: select_language(c),
+            )
+            for code, name in SUPPORTED_LANGUAGES
+        ]
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(t("language_picker_title", current_lang), weight=ft.FontWeight.BOLD),
+            content=ft.Column(tiles, tight=True),
+            actions=[
+                ft.TextButton(
+                    t("close", current_lang),
+                    on_click=lambda ev: close_dialog(dlg),
+                )
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
+    def close_dialog(dlg):
+        dlg.open = False
+        page.update()
+
+    settings_btn.on_click = open_language_picker
 
     page.add(
         ft.SafeArea(
@@ -356,6 +449,6 @@ def main(page: ft.Page):
         )
     )
 
-    refresh_wallet_ui()
+    update_all_ui()
 
 ft.app(target=main)
