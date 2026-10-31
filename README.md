@@ -36,16 +36,9 @@ CoinTrans is a 100% offline mobile application designed to optimize cash and coi
 
 ## Screenshots
 
-<!--
-Placeholder for mobile screenshots:
-- Wallet inventory tab
-- Payment suggestion result (Hand Over & Change)
-- Payment history and monthly summary
--->
-
 | Wallet Screen | Payment Suggestion | Payment History |
 | :---: | :---: | :---: |
-| _(Screenshot: Wallet)_ | _(Screenshot: Pay Screen)_ | _(Screenshot: History)_ |
+| <img src="docs/screenshots/wallet.jpg" alt="Wallet Screen" width="260"/> | <img src="docs/screenshots/pay.jpg" alt="Payment Suggestion" width="260"/> | <img src="docs/screenshots/history.jpg" alt="Payment History" width="260"/> |
 
 ---
 
@@ -60,6 +53,11 @@ coin_app/
 │   └── settings.json         # Workspace editor configurations
 ├── assets/
 │   └── icon.png              # Application launcher icon
+├── docs/
+│   └── screenshots/          # Mobile application screenshots
+│       ├── history.jpg
+│       ├── pay.jpg
+│       └── wallet.jpg
 ├── src/
 │   ├── assets/
 │   │   └── icon.png          # Bundled asset copy
