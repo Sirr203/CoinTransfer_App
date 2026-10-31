@@ -22,7 +22,12 @@ from history import (
     format_entry_date_group,
     format_month_label,
 )
-from export import generate_history_workbook, filter_entries_by_range
+from export import (
+    generate_history_workbook,
+    filter_entries_by_range,
+    resolve_export_directory,
+    get_unique_export_filename,
+)
 
 APP_NAME = "CoinTrans"
 
@@ -503,15 +508,8 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            today_str = date.today().isoformat()
-            filename = f"cointrans_{today_str}.xlsx"
-            base_dir = os.environ.get("FLET_APP_STORAGE_DATA") or os.path.expanduser("~")
-            export_dir = os.path.join(base_dir, "exports")
-            try:
-                os.makedirs(export_dir, exist_ok=True)
-            except Exception:
-                pass
-            file_path = os.path.join(export_dir, filename)
+            export_dir, display_location = resolve_export_directory()
+            filename, file_path = get_unique_export_filename(export_dir)
 
             try:
                 generate_history_workbook(
@@ -522,8 +520,8 @@ def main(page: ft.Page):
                 )
             except Exception as err:
                 err_dlg = ft.AlertDialog(
-                    title=ft.Text("Error", weight=ft.FontWeight.BOLD),
-                    content=ft.Text(str(err)),
+                    title=ft.Text(t("export_error_title", current_lang), weight=ft.FontWeight.BOLD),
+                    content=ft.Text(t("export_error_message", current_lang, error=str(err))),
                     actions=[
                         ft.TextButton(t("close", current_lang), on_click=lambda ev: close_dialog(err_dlg)),
                     ],
@@ -533,28 +531,26 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            def handle_open(ev):
-                close_dialog(success_dlg)
-                try:
-                    page.launch_url(f"file://{file_path}")
-                except Exception:
-                    pass
-
             success_dlg = ft.AlertDialog(
                 title=ft.Text(t("export_success_title", current_lang), weight=ft.FontWeight.BOLD),
                 content=ft.Column([
-                    ft.Text(t("export_success_message", current_lang, count=len(filtered), path=file_path)),
+                    ft.Text(
+                        t(
+                            "export_success_message",
+                            current_lang,
+                            count=len(filtered),
+                            location=display_location,
+                            filename=filename,
+                        ),
+                        size=14,
+                        color=ft.Colors.GREY_800,
+                    ),
                 ], tight=True, spacing=8),
                 actions=[
-                    ft.TextButton(
-                        t("close", current_lang),
-                        on_click=lambda ev: close_dialog(success_dlg),
-                    ),
                     ft.ElevatedButton(
-                        t("export_open_file", current_lang),
-                        icon=ft.Icons.OPEN_IN_NEW,
+                        t("close", current_lang),
                         style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
-                        on_click=handle_open,
+                        on_click=lambda ev: close_dialog(success_dlg),
                     ),
                 ],
                 actions_alignment=ft.MainAxisAlignment.END,

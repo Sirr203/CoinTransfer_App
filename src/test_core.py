@@ -29,6 +29,8 @@ from export import (
     generate_history_workbook,
     filter_entries_by_range,
     _format_breakdown_str,
+    resolve_export_directory,
+    get_unique_export_filename,
 )
 
 # ==========================================
@@ -374,6 +376,29 @@ try:
 finally:
     if os.path.exists(tmp_export_path):
         os.remove(tmp_export_path)
+
+# Unique export filename and suffix tests
+with tempfile.TemporaryDirectory() as td:
+    fn1, p1 = get_unique_export_filename(td, date(2026, 10, 31))
+    assert fn1 == "cointrans_2026-10-31.xlsx"
+    assert p1 == os.path.join(td, "cointrans_2026-10-31.xlsx")
+    with open(p1, "w") as f:
+        f.write("first")
+
+    fn2, p2 = get_unique_export_filename(td, date(2026, 10, 31))
+    assert fn2 == "cointrans_2026-10-31-2.xlsx"
+    assert p2 == os.path.join(td, "cointrans_2026-10-31-2.xlsx")
+    with open(p2, "w") as f:
+        f.write("second")
+
+    fn3, p3 = get_unique_export_filename(td, date(2026, 10, 31))
+    assert fn3 == "cointrans_2026-10-31-3.xlsx"
+    assert p3 == os.path.join(td, "cointrans_2026-10-31-3.xlsx")
+
+# Target export directory resolution test
+exp_dir, exp_label = resolve_export_directory()
+assert os.path.exists(exp_dir)
+assert len(exp_label) > 0
 
 print("Excel export tests passed successfully!")
 

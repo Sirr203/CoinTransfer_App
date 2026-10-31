@@ -62,6 +62,65 @@ def filter_entries_by_range(
     return filtered
 
 
+def resolve_export_directory() -> tuple[str, str]:
+    """Finds the most accessible, user-visible export directory on the platform.
+
+    Returns:
+        (actual_directory_path, user_friendly_display_location)
+    """
+    candidates = [
+        ("/storage/emulated/0/Download/CoinTrans", "Downloads/CoinTrans"),
+        ("/sdcard/Download/CoinTrans", "Downloads/CoinTrans"),
+        (os.path.join(os.path.expanduser("~"), "Downloads", "CoinTrans"), "Downloads/CoinTrans"),
+        (os.path.join(os.path.expanduser("~"), "Downloads"), "Downloads"),
+        ("/storage/emulated/0/Android/data/com.sirr/files/Download", "Android/data/com.sirr/files/Download"),
+    ]
+
+    for dir_path, display_name in candidates:
+        try:
+            os.makedirs(dir_path, exist_ok=True)
+            test_file = os.path.join(dir_path, ".test_write")
+            with open(test_file, "w") as f:
+                f.write("ok")
+            os.remove(test_file)
+            return dir_path, display_name
+        except Exception:
+            continue
+
+    base = os.environ.get("FLET_APP_STORAGE_DATA") or os.path.expanduser("~")
+    fallback = os.path.join(base, "exports")
+    try:
+        os.makedirs(fallback, exist_ok=True)
+    except Exception:
+        pass
+    return fallback, "Downloads/CoinTrans"
+
+
+def get_unique_export_filename(
+    directory: str,
+    export_date: date | None = None,
+) -> tuple[str, str]:
+    """Generates a unique export filename appending -2, -3 if file exists.
+
+    Returns:
+        (filename, full_file_path)
+    """
+    ref_date = export_date or date.today()
+    date_str = ref_date.isoformat()
+    base_name = f"cointrans_{date_str}.xlsx"
+    candidate_path = os.path.join(directory, base_name)
+    if not os.path.exists(candidate_path):
+        return base_name, candidate_path
+
+    i = 2
+    while True:
+        candidate_name = f"cointrans_{date_str}-{i}.xlsx"
+        candidate_path = os.path.join(directory, candidate_name)
+        if not os.path.exists(candidate_path):
+            return candidate_name, candidate_path
+        i += 1
+
+
 def _format_breakdown_str(breakdown: dict[str, int]) -> str:
     """Formats denomination dictionary into compact text, e.g. '1000x1, 100x2'."""
     if not breakdown:

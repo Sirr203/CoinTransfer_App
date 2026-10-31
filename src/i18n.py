@@ -85,8 +85,9 @@ TRANSLATIONS = {
         "export_button_confirm": "Export",
         "export_empty_message": "No payment history found for the selected time range.",
         "export_success_title": "Export Successful",
-        "export_success_message": "Saved {count} payment record(s) to:\n{path}",
-        "export_open_file": "Open File",
+        "export_success_message": "Exported {count} transaction(s) to:\n{location}\n\nFile: {filename}\n\nYou can access it using your phone's Files app.",
+        "export_error_title": "Export Failed",
+        "export_error_message": "Failed to create export file: {error}",
 
         # Excel Sheets & Columns
         "export_sheet_payments": "Payments",
@@ -199,8 +200,9 @@ TRANSLATIONS = {
         "export_button_confirm": "書き出し",
         "export_empty_message": "選択した期間の支払い履歴はありません。",
         "export_success_title": "書き出し完了",
-        "export_success_message": "{count}件の支払い記録を保存しました：\n{path}",
-        "export_open_file": "ファイルを開く",
+        "export_success_message": "{count}件の取引を出力しました：\n{location}\n\nファイル名: {filename}\n\n端末の「ファイル」アプリから確認できます。",
+        "export_error_title": "書き出し失敗",
+        "export_error_message": "ファイルを出力できませんでした: {error}",
 
         # Excel Sheets & Columns
         "export_sheet_payments": "支払い一覧",
@@ -313,8 +315,9 @@ TRANSLATIONS = {
         "export_button_confirm": "Xuất tệp",
         "export_empty_message": "Không tìm thấy lịch sử thanh toán trong khoảng thời gian đã chọn.",
         "export_success_title": "Xuất tệp thành công",
-        "export_success_message": "Đã lưu {count} giao dịch vào:\n{path}",
-        "export_open_file": "Mở tệp",
+        "export_success_message": "Đã xuất {count} giao dịch vào:\n{location}\n\nTệp: {filename}\n\nBạn có thể mở tệp này bằng ứng dụng Tệp (Files) trên điện thoại.",
+        "export_error_title": "Lỗi xuất tệp",
+        "export_error_message": "Không thể tạo tệp xuất: {error}",
 
         # Excel Sheets & Columns
         "export_sheet_payments": "Giao dịch",
