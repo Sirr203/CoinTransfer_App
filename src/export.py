@@ -461,3 +461,4 @@ def generate_history_workbook(
         return output_buffer.getvalue()
 
     return None
+
