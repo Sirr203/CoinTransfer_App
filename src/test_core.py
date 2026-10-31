@@ -1,6 +1,10 @@
+import io
 import os
 import re
 import tempfile
+import zipfile
+import xml.etree.ElementTree as ET
+from datetime import date
 from core import suggest, DENOMS, load_settings
 from i18n import (
     TRANSLATIONS,
@@ -19,6 +23,11 @@ from history import (
     load_history,
     save_history,
     MAX_HISTORY_ENTRIES,
+)
+from export import (
+    generate_history_workbook,
+    filter_entries_by_range,
+    _format_breakdown_str,
 )
 
 # ==========================================
@@ -232,7 +241,98 @@ with tempfile.TemporaryDirectory() as tmp_dir:
     print("Undo accurately restored wallet to:", restored_wallet)
 
 # ==========================================
-# 4. Vietnamese Character Purity Check
+# 4. Excel Export Tests
+# ==========================================
+sample_oct = {
+    "id": "entry-october-1",
+    "timestamp": "2026-10-15T14:30:00",
+    "bill": 630,
+    "total_paid": 1130,
+    "change": 500,
+    "pay": {"1000": 1, "100": 1, "10": 3},
+    "change_breakdown": {"500": 1},
+    "mode": "fast",
+    "wallet_total_after": 4500,
+}
+sample_sep = {
+    "id": "entry-september-1",
+    "timestamp": "2026-09-20T10:15:00",
+    "bill": 1200,
+    "total_paid": 2000,
+    "change": 800,
+    "pay": {"1000": 2},
+    "change_breakdown": {"500": 1, "100": 3},
+    "mode": "optimize_notes",
+    "wallet_total_after": 3300,
+}
+test_entries = [sample_oct, sample_sep]
+ref_date = date(2026, 10, 31)
+
+# Range filter tests
+assert len(filter_entries_by_range(test_entries, "all", ref_date)) == 2
+assert len(filter_entries_by_range(test_entries, "this_month", ref_date)) == 1
+assert filter_entries_by_range(test_entries, "this_month", ref_date)[0]["id"] == "entry-october-1"
+assert len(filter_entries_by_range(test_entries, "last_month", ref_date)) == 1
+assert filter_entries_by_range(test_entries, "last_month", ref_date)[0]["id"] == "entry-september-1"
+assert filter_entries_by_range([], "all") == []
+
+# Empty range returns None
+assert generate_history_workbook([], lang="en") is None
+assert generate_history_workbook([sample_oct], lang="en", export_range="last_month", reference_date=ref_date) is None
+
+# Workbook generation across all supported languages
+for lang_code in ["en", "ja", "vi"]:
+    wb_bytes = generate_history_workbook(test_entries, lang=lang_code, export_range="all")
+    assert wb_bytes is not None and len(wb_bytes) > 0
+
+    with zipfile.ZipFile(io.BytesIO(wb_bytes)) as z:
+        # Check sheet names in workbook.xml
+        wb_xml = ET.fromstring(z.read("xl/workbook.xml"))
+        ns = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+        sheet_names = [s.attrib["name"] for s in wb_xml.findall(".//main:sheet", ns)]
+        expected_sheets = [
+            t("export_sheet_payments", lang_code)[:31],
+            t("export_sheet_details", lang_code)[:31],
+            t("export_sheet_summary", lang_code)[:31],
+        ]
+        assert sheet_names == expected_sheets, f"Sheets mismatch for {lang_code}: {sheet_names} vs {expected_sheets}"
+
+        # Inspect Sheet 1 (Payments): header row + 2 data rows = 3 rows
+        sheet1_xml = ET.fromstring(z.read("xl/worksheets/sheet1.xml"))
+        rows = sheet1_xml.findall(".//main:row", ns)
+        assert len(rows) == 3, f"Expected 3 rows in payments sheet, found {len(rows)}"
+
+        # Inspect Sheet 2 (Details):
+        # sample_oct: pay (3 rows), change (1 row) = 4
+        # sample_sep: pay (1 row), change (2 rows) = 3
+        # Total = header row + 7 detail rows = 8 rows
+        sheet2_xml = ET.fromstring(z.read("xl/worksheets/sheet2.xml"))
+        detail_rows = sheet2_xml.findall(".//main:row", ns)
+        assert len(detail_rows) == 8, f"Expected 8 rows in details sheet, found {len(detail_rows)}"
+
+        # Inspect Sheet 3 (Summary): has monthly summary and denomination tables
+        sheet3_xml = ET.fromstring(z.read("xl/worksheets/sheet3.xml"))
+        summary_rows = sheet3_xml.findall(".//main:row", ns)
+        assert len(summary_rows) > 10, "Summary sheet should contain multiple rows for monthly and denomination blocks"
+
+# File path export test
+with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp_file:
+    tmp_export_path = tmp_file.name
+
+try:
+    ret_path = generate_history_workbook(test_entries, lang="en", export_range="all", output_path=tmp_export_path)
+    assert ret_path == tmp_export_path
+    assert os.path.exists(tmp_export_path)
+    assert os.path.getsize(tmp_export_path) > 1000
+    print("Excel export file generated successfully at:", tmp_export_path)
+finally:
+    if os.path.exists(tmp_export_path):
+        os.remove(tmp_export_path)
+
+print("Excel export tests passed successfully!")
+
+# ==========================================
+# 5. Vietnamese Character Purity Check
 # ==========================================
 # Verify that no Vietnamese diacritics exist outside the 'vi' dictionary
 repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

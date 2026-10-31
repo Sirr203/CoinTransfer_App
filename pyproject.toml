@@ -3,7 +3,7 @@ name = "cointrans"
 version = "0.3.0"
 description = "Offline Japanese coin payment optimizer"
 requires-python = ">=3.10"
-dependencies = ["flet==0.28.3"]
+dependencies = ["flet==0.28.3", "XlsxWriter==3.2.0"]
 
 [tool.flet]
 org = "com.sirr"

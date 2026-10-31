@@ -1,4 +1,6 @@
 """Flet user interface for CoinTrans (offline Japanese coin payment optimizer)."""
+import os
+from datetime import date
 import flet as ft
 from core import DENOMS, suggest, load_wallet, save_wallet, load_settings, save_settings
 from i18n import (
@@ -19,6 +21,7 @@ from history import (
     format_entry_date_group,
     format_month_label,
 )
+from export import generate_history_workbook, filter_entries_by_range
 
 APP_NAME = "CoinTrans"
 
@@ -427,12 +430,137 @@ def main(page: ft.Page):
         refresh_history_ui()
         page.update()
 
+    def show_export_dialog():
+        range_radio = ft.RadioGroup(
+            content=ft.Column([
+                ft.Radio(value="all", label=t("export_range_all", current_lang)),
+                ft.Radio(value="this_month", label=t("export_range_this_month", current_lang)),
+                ft.Radio(value="last_month", label=t("export_range_last_month", current_lang)),
+            ], spacing=6),
+            value="all",
+        )
+
+        def handle_export(ev):
+            chosen_range = range_radio.value or "all"
+            filtered = filter_entries_by_range(history_entries, chosen_range)
+            close_dialog(dlg)
+
+            if not filtered:
+                empty_dlg = ft.AlertDialog(
+                    title=ft.Text(t("export_dialog_title", current_lang), weight=ft.FontWeight.BOLD),
+                    content=ft.Text(t("export_empty_message", current_lang)),
+                    actions=[
+                        ft.TextButton(
+                            t("close", current_lang),
+                            on_click=lambda ev: close_dialog(empty_dlg),
+                        ),
+                    ],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+                page.overlay.append(empty_dlg)
+                empty_dlg.open = True
+                page.update()
+                return
+
+            today_str = date.today().isoformat()
+            filename = f"cointrans_{today_str}.xlsx"
+            base_dir = os.environ.get("FLET_APP_STORAGE_DATA") or os.path.expanduser("~")
+            export_dir = os.path.join(base_dir, "exports")
+            try:
+                os.makedirs(export_dir, exist_ok=True)
+            except Exception:
+                pass
+            file_path = os.path.join(export_dir, filename)
+
+            try:
+                generate_history_workbook(
+                    history_entries,
+                    lang=current_lang,
+                    export_range=chosen_range,
+                    output_path=file_path,
+                )
+            except Exception as err:
+                err_dlg = ft.AlertDialog(
+                    title=ft.Text("Error", weight=ft.FontWeight.BOLD),
+                    content=ft.Text(str(err)),
+                    actions=[
+                        ft.TextButton(t("close", current_lang), on_click=lambda ev: close_dialog(err_dlg)),
+                    ],
+                )
+                page.overlay.append(err_dlg)
+                err_dlg.open = True
+                page.update()
+                return
+
+            def handle_open(ev):
+                close_dialog(success_dlg)
+                try:
+                    page.launch_url(f"file://{file_path}")
+                except Exception:
+                    pass
+
+            success_dlg = ft.AlertDialog(
+                title=ft.Text(t("export_success_title", current_lang), weight=ft.FontWeight.BOLD),
+                content=ft.Column([
+                    ft.Text(t("export_success_message", current_lang, count=len(filtered), path=file_path)),
+                ], tight=True, spacing=8),
+                actions=[
+                    ft.TextButton(
+                        t("close", current_lang),
+                        on_click=lambda ev: close_dialog(success_dlg),
+                    ),
+                    ft.ElevatedButton(
+                        t("export_open_file", current_lang),
+                        icon=ft.Icons.OPEN_IN_NEW,
+                        style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
+                        on_click=handle_open,
+                    ),
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.overlay.append(success_dlg)
+            success_dlg.open = True
+            page.update()
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(t("export_dialog_title", current_lang), weight=ft.FontWeight.BOLD),
+            content=ft.Column([
+                ft.Text(t("export_dialog_subtitle", current_lang), size=13, color=ft.Colors.GREY_700),
+                ft.Container(height=8),
+                range_radio,
+            ], tight=True, spacing=4),
+            actions=[
+                ft.TextButton(
+                    t("dialog_cancel", current_lang),
+                    on_click=lambda ev: close_dialog(dlg),
+                ),
+                ft.ElevatedButton(
+                    t("export_button_confirm", current_lang),
+                    icon=ft.Icons.FILE_DOWNLOAD,
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
+                    on_click=handle_export,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
     def refresh_history_ui():
         history_list_column.controls.clear()
 
         # Monthly summary card
         summary = get_monthly_summary(history_entries)
         month_label = format_month_label(summary["year"], summary["month"], current_lang)
+
+        export_btn = ft.IconButton(
+            icon=ft.Icons.FILE_DOWNLOAD_OUTLINED,
+            icon_color=ft.Colors.TEAL_800,
+            tooltip=t("history_export_button", current_lang),
+            visible=(len(history_entries) > 0),
+            on_click=lambda ev: show_export_dialog(),
+        )
 
         clear_btn = ft.IconButton(
             icon=ft.Icons.DELETE_SWEEP_OUTLINED,
@@ -460,7 +588,10 @@ def main(page: ft.Page):
                             weight=ft.FontWeight.W_500,
                             expand=True,
                         ),
-                        clear_btn,
+                        ft.Row([
+                            export_btn,
+                            clear_btn,
+                        ], spacing=0),
                     ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                     ft.Text(
                         fmt(summary["total_spent"]),
