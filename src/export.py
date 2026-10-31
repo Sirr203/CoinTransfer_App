@@ -62,28 +62,33 @@ def filter_entries_by_range(
     return filtered
 
 
-def resolve_export_directory() -> tuple[str, str]:
-    """Finds the most accessible, user-visible export directory on the platform.
+def resolve_export_directory(
+    custom_candidates: list[tuple[str, str, bool]] | None = None,
+) -> tuple[str, str, bool]:
+    """Finds the most accessible export directory on the platform.
 
     Returns:
-        (actual_directory_path, user_friendly_display_location)
+        (actual_directory_path, user_friendly_display_location, is_public)
     """
-    candidates = [
-        ("/storage/emulated/0/Download/CoinTrans", "Downloads/CoinTrans"),
-        ("/sdcard/Download/CoinTrans", "Downloads/CoinTrans"),
-        (os.path.join(os.path.expanduser("~"), "Downloads", "CoinTrans"), "Downloads/CoinTrans"),
-        (os.path.join(os.path.expanduser("~"), "Downloads"), "Downloads"),
-        ("/storage/emulated/0/Android/data/com.sirr/files/Download", "Android/data/com.sirr/files/Download"),
-    ]
+    if custom_candidates is not None:
+        candidates = custom_candidates
+    else:
+        candidates = [
+            ("/storage/emulated/0/Download/CoinTrans", "Downloads/CoinTrans", True),
+            ("/sdcard/Download/CoinTrans", "Downloads/CoinTrans", True),
+            (os.path.join(os.path.expanduser("~"), "Downloads", "CoinTrans"), "Downloads/CoinTrans", True),
+            (os.path.join(os.path.expanduser("~"), "Downloads"), "Downloads", True),
+            ("/storage/emulated/0/Android/data/com.sirr/files/Download", "Android/data/com.sirr/files/Download", False),
+        ]
 
-    for dir_path, display_name in candidates:
+    for dir_path, display_name, is_public in candidates:
         try:
             os.makedirs(dir_path, exist_ok=True)
             test_file = os.path.join(dir_path, ".test_write")
             with open(test_file, "w") as f:
                 f.write("ok")
             os.remove(test_file)
-            return dir_path, display_name
+            return dir_path, display_name, is_public
         except Exception:
             continue
 
@@ -93,7 +98,21 @@ def resolve_export_directory() -> tuple[str, str]:
         os.makedirs(fallback, exist_ok=True)
     except Exception:
         pass
-    return fallback, "Downloads/CoinTrans"
+    return fallback, "Private App Storage", False
+
+
+def verify_exported_file(file_path: str) -> int:
+    """Verifies that the exported file exists on disk and is non-empty.
+
+    Returns the file size in bytes.
+    Raises IOError if the file does not exist or has 0 bytes.
+    """
+    if not os.path.exists(file_path):
+        raise IOError(f"Exported file does not exist at destination: {file_path}")
+    size = os.path.getsize(file_path)
+    if size == 0:
+        raise IOError(f"Exported file is empty (0 bytes): {file_path}")
+    return size
 
 
 def get_unique_export_filename(

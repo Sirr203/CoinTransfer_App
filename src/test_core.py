@@ -31,6 +31,7 @@ from export import (
     _format_breakdown_str,
     resolve_export_directory,
     get_unique_export_filename,
+    verify_exported_file,
 )
 
 # ==========================================
@@ -395,10 +396,67 @@ with tempfile.TemporaryDirectory() as td:
     assert fn3 == "cointrans_2026-10-31-3.xlsx"
     assert p3 == os.path.join(td, "cointrans_2026-10-31-3.xlsx")
 
-# Target export directory resolution test
-exp_dir, exp_label = resolve_export_directory()
+# Target export directory resolution tests (with mocking)
+with tempfile.TemporaryDirectory() as td_pub, tempfile.TemporaryDirectory() as td_priv:
+    # 1. Public directory is writable
+    mock_candidates = [
+        (td_pub, "Downloads/CoinTrans", True),
+    ]
+    res_dir, res_label, is_pub = resolve_export_directory(custom_candidates=mock_candidates)
+    assert res_dir == td_pub
+    assert res_label == "Downloads/CoinTrans"
+    assert is_pub is True
+
+    # 2. Public directory not writable -> fallback to private directory
+    with tempfile.NamedTemporaryFile() as blocked_file:
+        unwritable_path = os.path.join(blocked_file.name, "forbidden_sub_dir")
+        mock_fallback_candidates = [
+            (unwritable_path, "Downloads/CoinTrans", True),
+            (td_priv, "Private App Storage", False),
+        ]
+        res_dir2, res_label2, is_pub2 = resolve_export_directory(custom_candidates=mock_fallback_candidates)
+        assert res_dir2 == td_priv
+        assert res_label2 == "Private App Storage"
+        assert is_pub2 is False
+
+# Real system directory resolution check
+exp_dir, exp_label, exp_is_pub = resolve_export_directory()
 assert os.path.exists(exp_dir)
 assert len(exp_label) > 0
+if exp_is_pub:
+    assert exp_label in ("Downloads/CoinTrans", "Downloads")
+else:
+    assert exp_label != "Downloads/CoinTrans"
+
+# File verification tests
+with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tf:
+    tf_path = tf.name
+
+try:
+    # Non-empty file verification passes
+    with open(tf_path, "wb") as f:
+        f.write(b"content")
+    size = verify_exported_file(tf_path)
+    assert size == 7
+
+    # Empty file verification raises IOError
+    with open(tf_path, "wb") as f:
+        f.write(b"")
+    try:
+        verify_exported_file(tf_path)
+        assert False, "Should raise IOError for empty file"
+    except IOError:
+        pass
+finally:
+    if os.path.exists(tf_path):
+        os.remove(tf_path)
+
+# Non-existent file verification raises IOError
+try:
+    verify_exported_file(tf_path)
+    assert False, "Should raise IOError for missing file"
+except IOError:
+    pass
 
 print("Excel export tests passed successfully!")
 

@@ -27,6 +27,7 @@ from export import (
     filter_entries_by_range,
     resolve_export_directory,
     get_unique_export_filename,
+    verify_exported_file,
 )
 
 APP_NAME = "CoinTrans"
@@ -508,7 +509,7 @@ def main(page: ft.Page):
                 page.update()
                 return
 
-            export_dir, display_location = resolve_export_directory()
+            export_dir, display_location, is_public = resolve_export_directory()
             filename, file_path = get_unique_export_filename(export_dir)
 
             try:
@@ -518,16 +519,46 @@ def main(page: ft.Page):
                     export_range=chosen_range,
                     output_path=file_path,
                 )
+                verify_exported_file(file_path)
             except Exception as err:
+                err_type = type(err).__name__
                 err_dlg = ft.AlertDialog(
                     title=ft.Text(t("export_error_title", current_lang), weight=ft.FontWeight.BOLD),
-                    content=ft.Text(t("export_error_message", current_lang, error=str(err))),
+                    content=ft.Text(t("export_error_message", current_lang, error=f"[{err_type}] {str(err)}")),
                     actions=[
                         ft.TextButton(t("close", current_lang), on_click=lambda ev: close_dialog(err_dlg)),
                     ],
                 )
                 page.overlay.append(err_dlg)
                 err_dlg.open = True
+                page.update()
+                return
+
+            if not is_public:
+                warn_dlg = ft.AlertDialog(
+                    title=ft.Text(t("export_warning_title", current_lang), weight=ft.FontWeight.BOLD),
+                    content=ft.Column([
+                        ft.Text(
+                            t(
+                                "export_warning_message",
+                                current_lang,
+                                filename=filename,
+                            ),
+                            size=14,
+                            color=ft.Colors.GREY_800,
+                        ),
+                    ], tight=True, spacing=8),
+                    actions=[
+                        ft.ElevatedButton(
+                            t("close", current_lang),
+                            style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
+                            on_click=lambda ev: close_dialog(warn_dlg),
+                        ),
+                    ],
+                    actions_alignment=ft.MainAxisAlignment.END,
+                )
+                page.overlay.append(warn_dlg)
+                warn_dlg.open = True
                 page.update()
                 return
 

@@ -86,6 +86,8 @@ TRANSLATIONS = {
         "export_empty_message": "No payment history found for the selected time range.",
         "export_success_title": "Export Successful",
         "export_success_message": "Exported {count} transaction(s) to:\n{location}\n\nFile: {filename}\n\nYou can access it using your phone's Files app.",
+        "export_warning_title": "Storage Restricted",
+        "export_warning_message": "The file was created ({filename}), but could not be saved to your public Downloads folder due to Android system storage restrictions.\n\nThe file is stored in private app storage and cannot be accessed with standard file managers.",
         "export_error_title": "Export Failed",
         "export_error_message": "Failed to create export file: {error}",
 
@@ -201,6 +203,8 @@ TRANSLATIONS = {
         "export_empty_message": "選択した期間の支払い履歴はありません。",
         "export_success_title": "書き出し完了",
         "export_success_message": "{count}件の取引を出力しました：\n{location}\n\nファイル名: {filename}\n\n端末の「ファイル」アプリから確認できます。",
+        "export_warning_title": "保存先の制限",
+        "export_warning_message": "ファイル（{filename}）は作成されましたが、Androidの保存先制限のため「ダウンロード」フォルダに保存できませんでした。\n\nアプリ専用領域に保存されているため、通常のファイル管理アプリからはアクセスできません。",
         "export_error_title": "書き出し失敗",
         "export_error_message": "ファイルを出力できませんでした: {error}",
 
@@ -316,6 +320,8 @@ TRANSLATIONS = {
         "export_empty_message": "Không tìm thấy lịch sử thanh toán trong khoảng thời gian đã chọn.",
         "export_success_title": "Xuất tệp thành công",
         "export_success_message": "Đã xuất {count} giao dịch vào:\n{location}\n\nTệp: {filename}\n\nBạn có thể mở tệp này bằng ứng dụng Tệp (Files) trên điện thoại.",
+        "export_warning_title": "Giới hạn vị trí lưu",
+        "export_warning_message": "Tệp ({filename}) đã được tạo nhưng không thể lưu vào thư mục Tải về công khai do giới hạn quyền của hệ thống Android.\n\nTệp nằm trong bộ nhớ riêng của ứng dụng và không thể truy cập bằng trình quản lý tệp thông thường.",
         "export_error_title": "Lỗi xuất tệp",
         "export_error_message": "Không thể tạo tệp xuất: {error}",
 

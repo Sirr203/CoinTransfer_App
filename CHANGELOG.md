@@ -5,6 +5,17 @@ All notable changes to the CoinTrans project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2] - 2026-10-31
+
+### Added
+- Explicit file existence and non-zero size verification (`verify_exported_file`) after generating Excel exports.
+- Accurate fallback reporting: files falling back to private app storage show a dedicated warning dialog instead of claiming to be saved in Downloads.
+- Error dialogs include the specific exception type (`[ExceptionType] message`) for clear diagnostics.
+- Unit tests mocking the directory resolver for public directory success, private fallback, and empty file verification.
+
+### Changed
+- Bumped project version to `0.4.2`.
+
 ## [0.4.1] - 2026-10-31
 
 ### Added
