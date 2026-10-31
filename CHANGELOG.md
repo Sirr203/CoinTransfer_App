@@ -5,6 +5,22 @@ All notable changes to the CoinTrans project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-10-31
+
+### Added
+- Custom naming for payment history entries via long-press on any transaction row.
+- Edit icon button in the expanded view of payment history cards.
+- Discoverability hint in the History tab indicating long-press renaming.
+- Localized "Name" column in both the "Payments" and "Details" sheets of the Excel export.
+- Smart public Downloads directory resolver (`Downloads/CoinTrans`) for exported spreadsheets.
+- Automatic filename collision handling appending `-2`, `-3` (e.g. `cointrans_YYYY-MM-DD-2.xlsx`).
+- Unit tests for custom renaming, trimming, 60-character limits, empty clearing, and filename uniqueness.
+
+### Changed
+- Removed non-functional "Open File" button on Android to prevent unsupported `file://` intent errors.
+- Success dialog now displays user-visible folder names rather than internal storage paths.
+- Bumped project version to `0.4.1`.
+
 ## [0.4.0] - 2026-10-31
 
 ### Added

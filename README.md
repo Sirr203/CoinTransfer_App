@@ -13,6 +13,7 @@ CoinTrans is a 100% offline mobile application designed to optimize cash and coi
 - **Visual Breakdown**: Color-coded summary cards highlighting the exact amount and denominations to **Give** (teal) and **Receive Back** (blue).
 - **Payment History & Statistics**:
   - Automatically records confirmed payments (bill amount, paid denominations, change received, calculation mode, and wallet balance).
+  - Custom transaction names: Long-press any history row or tap the edit icon to set an optional custom name (e.g., "Seven-Eleven lunch", up to 60 characters).
   - Monthly spending summary with payment counts.
   - One-tap **Undo** for the latest payment, accurately restoring your previous wallet balances.
   - Delete individual entries or clear all history.
@@ -20,10 +21,10 @@ CoinTrans is a 100% offline mobile application designed to optimize cash and coi
   - Export transactions into structured, professionally formatted spreadsheets using pure-Python `XlsxWriter`.
   - Filter by date range: **All Time**, **This Month**, or **Last Month**.
   - Three localized sheets:
-    - **Payments**: Ledger with real Excel dates, formatted currency, calculation mode, and coin breakdowns.
-    - **Details**: Tidy/long format optimized for Pivot Tables (`Payment ID`, `Date`, `Kind`, `Denomination`, `Count`, `Subtotal`).
+    - **Payments**: Ledger with real Excel dates, custom transaction names, formatted currency, calculation mode, and coin breakdowns.
+    - **Details**: Tidy/long format optimized for Pivot Tables (`Payment ID`, `Date`, `Name`, `Kind`, `Denomination`, `Count`, `Subtotal`).
     - **Summary**: Monthly expenditure totals with average bills, plus denomination usage analysis (handed over vs received).
-  - Direct in-app file launcher (`page.launch_url`) to immediately view in Microsoft Excel or Google Sheets.
+  - Saves directly to the public **Downloads/CoinTrans** folder with automatic collision handling (`cointrans_YYYY-MM-DD-2.xlsx`). Easily find and open files using your phone's Files app.
 - **Internationalization (i18n)**:
   - English (`en`), Japanese (`ja`), and Vietnamese (`vi`).
   - Seamless in-app language switching via the settings gear icon without requiring an app restart.
@@ -100,7 +101,7 @@ Data is saved locally in the platform application data directory (`FLET_APP_STOR
 - `wallet.json`: Map of denomination amounts to quantities currently in your wallet.
 - `settings.json`: User preferences including `prefer_notes` (boolean) and `language` (`"en"`, `"ja"`, or `"vi"`).
 - `history.json`: List of up to 500 recent transactions containing unique IDs, ISO timestamps, bill amounts, breakdowns, mode, and wallet balance.
-- `exports/`: Generated Excel reports named `cointrans_YYYY-MM-DD.xlsx`.
+- `Downloads/CoinTrans/`: User-visible destination directory for exported Excel workbooks (`cointrans_YYYY-MM-DD.xlsx`).
 
 ---
 
