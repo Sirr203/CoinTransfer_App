@@ -19,6 +19,7 @@ from history import (
     delete_entry,
     undo_last_payment,
     clear_history,
+    rename_entry,
     get_monthly_summary,
     load_history,
     save_history,
@@ -240,11 +241,56 @@ with tempfile.TemporaryDirectory() as tmp_dir:
     assert restored_wallet == initial_wallet
     print("Undo accurately restored wallet to:", restored_wallet)
 
+    # Rename entry tests
+    test_hist = [create_entry(bill=500, total_paid=500, change=0, pay={"500": 1}, change_breakdown={}, mode="fast", wallet_total_after=1000, entry_id="e1")]
+    assert "name" not in test_hist[0]
+
+    # 1. Rename to custom name
+    test_hist = rename_entry(test_hist, "e1", "Seven-Eleven lunch", path=tmp_hist_file)
+    assert test_hist[0].get("name") == "Seven-Eleven lunch"
+
+    # 2. Trim whitespace
+    test_hist = rename_entry(test_hist, "e1", "   FamilyMart snack   ", path=tmp_hist_file)
+    assert test_hist[0].get("name") == "FamilyMart snack"
+
+    # 3. Limit to 60 characters
+    long_name = "A" * 80
+    test_hist = rename_entry(test_hist, "e1", long_name, path=tmp_hist_file)
+    assert len(test_hist[0]["name"]) == 60
+    assert test_hist[0]["name"] == "A" * 60
+
+    # 4. Clear name with empty string or spaces
+    test_hist = rename_entry(test_hist, "e1", "", path=tmp_hist_file)
+    assert "name" not in test_hist[0]
+
+    test_hist = rename_entry(test_hist, "e1", "Some Name", path=tmp_hist_file)
+    test_hist = rename_entry(test_hist, "e1", "    ", path=tmp_hist_file)
+    assert "name" not in test_hist[0]
+
+    # 5. Old entries without name field keep working
+    old_entry = {
+        "id": "old-1",
+        "timestamp": "2026-10-01T12:00:00",
+        "bill": 100,
+        "total_paid": 100,
+        "change": 0,
+        "pay": {"100": 1},
+        "change_breakdown": {},
+        "mode": "fast",
+        "wallet_total_after": 500,
+    }
+    old_list = [old_entry]
+    assert old_list[0].get("name") is None
+    old_list = rename_entry(old_list, "old-1", "Vending machine", path=tmp_hist_file)
+    assert old_list[0].get("name") == "Vending machine"
+    print("Rename tests passed successfully!")
+
 # ==========================================
 # 4. Excel Export Tests
 # ==========================================
 sample_oct = {
     "id": "entry-october-1",
+    "name": "Seven-Eleven lunch",
     "timestamp": "2026-10-15T14:30:00",
     "bill": 630,
     "total_paid": 1130,

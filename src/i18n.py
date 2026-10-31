@@ -62,6 +62,11 @@ TRANSLATIONS = {
         "history_paid_label": "Paid: {amount}",
         "history_change_label": "Change: {amount}",
         "history_export_button": "Export to Excel",
+        "history_rename_hint": "Tip: Long-press an entry to rename it",
+        "history_rename_title": "Rename Payment",
+        "history_rename_label": "Custom name (e.g. Lunch, Groceries)",
+        "history_rename_save": "Save",
+        "history_rename_tooltip": "Rename",
 
         # Dialogs
         "undo_dialog_title": "Undo Last Payment?",
@@ -89,6 +94,7 @@ TRANSLATIONS = {
         "export_sheet_summary": "Summary",
         "export_col_date": "Date",
         "export_col_time": "Time",
+        "export_col_name": "Name",
         "export_col_bill": "Bill Amount",
         "export_col_total_paid": "Total Paid",
         "export_col_change": "Change",
@@ -170,6 +176,11 @@ TRANSLATIONS = {
         "history_paid_label": "支払額: {amount}",
         "history_change_label": "お釣り: {amount}",
         "history_export_button": "Excel出力",
+        "history_rename_hint": "ヒント: 履歴を長押しして名前を変更",
+        "history_rename_title": "支払いの名前を変更",
+        "history_rename_label": "名前（例：ランチ、スーパー）",
+        "history_rename_save": "保存",
+        "history_rename_tooltip": "名前を変更",
 
         # Dialogs
         "undo_dialog_title": "直前の支払いを元に戻しますか？",
@@ -197,6 +208,7 @@ TRANSLATIONS = {
         "export_sheet_summary": "集計",
         "export_col_date": "日付",
         "export_col_time": "時刻",
+        "export_col_name": "名前",
         "export_col_bill": "請求額",
         "export_col_total_paid": "支払額",
         "export_col_change": "お釣り",
@@ -278,6 +290,11 @@ TRANSLATIONS = {
         "history_paid_label": "Đã đưa: {amount}",
         "history_change_label": "Thối lại: {amount}",
         "history_export_button": "Xuất ra Excel",
+        "history_rename_hint": "Mẹo: Nhấn giữ một giao dịch để đổi tên",
+        "history_rename_title": "Đổi tên giao dịch",
+        "history_rename_label": "Tên giao dịch (vd: Ăn trưa, Siêu thị)",
+        "history_rename_save": "Lưu",
+        "history_rename_tooltip": "Đổi tên",
 
         # Dialogs
         "undo_dialog_title": "Hoàn tác giao dịch gần nhất?",
@@ -305,6 +322,7 @@ TRANSLATIONS = {
         "export_sheet_summary": "Tổng hợp",
         "export_col_date": "Ngày",
         "export_col_time": "Giờ",
+        "export_col_name": "Tên",
         "export_col_bill": "Số tiền hóa đơn",
         "export_col_total_paid": "Đã trả",
         "export_col_change": "Tiền thối",

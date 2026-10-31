@@ -162,6 +162,7 @@ def generate_history_workbook(
     payments_headers = [
         t("export_col_date", lang),
         t("export_col_time", lang),
+        t("export_col_name", lang),
         t("export_col_bill", lang),
         t("export_col_total_paid", lang),
         t("export_col_change", lang),
@@ -203,6 +204,7 @@ def generate_history_workbook(
         wallet_after = entry.get("wallet_total_after", 0)
         paid_text = _format_breakdown_str(entry.get("pay", {}))
         change_text = _format_breakdown_str(entry.get("change_breakdown", {}))
+        custom_name = entry.get("name") or ""
 
         if dt_val:
             ws_payments.write_datetime(row_idx, 0, dt_val, date_fmt)
@@ -210,13 +212,14 @@ def generate_history_workbook(
             ws_payments.write(row_idx, 0, ts[:10], date_fmt)
 
         ws_payments.write(row_idx, 1, time_str, time_fmt)
-        ws_payments.write_number(row_idx, 2, bill, currency_fmt)
-        ws_payments.write_number(row_idx, 3, total_paid, currency_fmt)
-        ws_payments.write_number(row_idx, 4, change, currency_fmt)
-        ws_payments.write(row_idx, 5, mode_label, text_center_fmt)
-        ws_payments.write_number(row_idx, 6, wallet_after, currency_fmt)
-        ws_payments.write(row_idx, 7, paid_text)
-        ws_payments.write(row_idx, 8, change_text)
+        ws_payments.write(row_idx, 2, custom_name)
+        ws_payments.write_number(row_idx, 3, bill, currency_fmt)
+        ws_payments.write_number(row_idx, 4, total_paid, currency_fmt)
+        ws_payments.write_number(row_idx, 5, change, currency_fmt)
+        ws_payments.write(row_idx, 6, mode_label, text_center_fmt)
+        ws_payments.write_number(row_idx, 7, wallet_after, currency_fmt)
+        ws_payments.write(row_idx, 8, paid_text)
+        ws_payments.write(row_idx, 9, change_text)
 
     # Autofilter across all payments columns
     num_payment_rows = len(chronological_entries)
@@ -225,10 +228,11 @@ def generate_history_workbook(
     # Set column widths
     ws_payments.set_column(0, 0, 13)  # Date
     ws_payments.set_column(1, 1, 9)   # Time
-    ws_payments.set_column(2, 4, 13)  # Bill, Paid, Change
-    ws_payments.set_column(5, 5, 18)  # Mode
-    ws_payments.set_column(6, 6, 16)  # Wallet After
-    ws_payments.set_column(7, 8, 25)  # Breakdowns
+    ws_payments.set_column(2, 2, 22)  # Name
+    ws_payments.set_column(3, 5, 13)  # Bill, Paid, Change
+    ws_payments.set_column(6, 6, 18)  # Mode
+    ws_payments.set_column(7, 7, 16)  # Wallet After
+    ws_payments.set_column(8, 9, 25)  # Breakdowns
 
     # =========================================================================
     # SHEET 2: DETAILS (Long/tidy format for Pivot Tables)
@@ -239,6 +243,7 @@ def generate_history_workbook(
     details_headers = [
         t("export_col_payment_id", lang),
         t("export_col_date", lang),
+        t("export_col_name", lang),
         t("export_col_kind", lang),
         t("export_col_denom", lang),
         t("export_col_count", lang),
@@ -254,6 +259,7 @@ def generate_history_workbook(
     detail_row_idx = 1
     for entry in chronological_entries:
         entry_id = entry.get("id", "")
+        custom_name = entry.get("name") or ""
         ts = entry.get("timestamp", "")
         dt_val = None
         try:
@@ -272,10 +278,11 @@ def generate_history_workbook(
                     ws_details.write_datetime(detail_row_idx, 1, dt_val, date_fmt)
                 else:
                     ws_details.write(detail_row_idx, 1, ts[:10], date_fmt)
-                ws_details.write(detail_row_idx, 2, kind_paid_label, text_center_fmt)
-                ws_details.write_number(detail_row_idx, 3, denom, currency_fmt)
-                ws_details.write_number(detail_row_idx, 4, count, int_fmt)
-                ws_details.write_number(detail_row_idx, 5, subtotal, currency_fmt)
+                ws_details.write(detail_row_idx, 2, custom_name)
+                ws_details.write(detail_row_idx, 3, kind_paid_label, text_center_fmt)
+                ws_details.write_number(detail_row_idx, 4, denom, currency_fmt)
+                ws_details.write_number(detail_row_idx, 5, count, int_fmt)
+                ws_details.write_number(detail_row_idx, 6, subtotal, currency_fmt)
                 detail_row_idx += 1
 
         # Change items
@@ -288,10 +295,11 @@ def generate_history_workbook(
                     ws_details.write_datetime(detail_row_idx, 1, dt_val, date_fmt)
                 else:
                     ws_details.write(detail_row_idx, 1, ts[:10], date_fmt)
-                ws_details.write(detail_row_idx, 2, kind_change_label, text_center_fmt)
-                ws_details.write_number(detail_row_idx, 3, denom, currency_fmt)
-                ws_details.write_number(detail_row_idx, 4, count, int_fmt)
-                ws_details.write_number(detail_row_idx, 5, subtotal, currency_fmt)
+                ws_details.write(detail_row_idx, 2, custom_name)
+                ws_details.write(detail_row_idx, 3, kind_change_label, text_center_fmt)
+                ws_details.write_number(detail_row_idx, 4, denom, currency_fmt)
+                ws_details.write_number(detail_row_idx, 5, count, int_fmt)
+                ws_details.write_number(detail_row_idx, 6, subtotal, currency_fmt)
                 detail_row_idx += 1
 
     if detail_row_idx > 1:
@@ -299,10 +307,11 @@ def generate_history_workbook(
 
     ws_details.set_column(0, 0, 38)  # Payment ID UUID
     ws_details.set_column(1, 1, 13)  # Date
-    ws_details.set_column(2, 2, 12)  # Kind
-    ws_details.set_column(3, 3, 14)  # Denomination
-    ws_details.set_column(4, 4, 10)  # Count
-    ws_details.set_column(5, 5, 14)  # Subtotal
+    ws_details.set_column(2, 2, 22)  # Name
+    ws_details.set_column(3, 3, 12)  # Kind
+    ws_details.set_column(4, 4, 14)  # Denomination
+    ws_details.set_column(5, 5, 10)  # Count
+    ws_details.set_column(6, 6, 14)  # Subtotal
 
     # =========================================================================
     # SHEET 3: SUMMARY

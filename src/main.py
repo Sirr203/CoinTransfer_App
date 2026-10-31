@@ -17,6 +17,7 @@ from history import (
     delete_entry,
     undo_last_payment,
     clear_history,
+    rename_entry,
     get_monthly_summary,
     format_entry_date_group,
     format_month_label,
@@ -430,6 +431,46 @@ def main(page: ft.Page):
         refresh_history_ui()
         page.update()
 
+    def show_rename_dialog(entry: dict):
+        name_input = ft.TextField(
+            value=entry.get("name", ""),
+            label=t("history_rename_label", current_lang),
+            max_length=60,
+            autofocus=True,
+            border_color=ft.Colors.TEAL,
+        )
+
+        def handle_save(ev):
+            nonlocal history_entries
+            close_dialog(dlg)
+            history_entries = rename_entry(history_entries, entry.get("id"), name_input.value)
+            refresh_history_ui()
+            page.update()
+
+        name_input.on_submit = handle_save
+
+        dlg = ft.AlertDialog(
+            title=ft.Text(t("history_rename_title", current_lang), weight=ft.FontWeight.BOLD),
+            content=ft.Column([
+                name_input,
+            ], tight=True, spacing=8),
+            actions=[
+                ft.TextButton(
+                    t("dialog_cancel", current_lang),
+                    on_click=lambda ev: close_dialog(dlg),
+                ),
+                ft.ElevatedButton(
+                    t("history_rename_save", current_lang),
+                    style=ft.ButtonStyle(bgcolor=ft.Colors.TEAL, color=ft.Colors.WHITE),
+                    on_click=handle_save,
+                ),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.overlay.append(dlg)
+        dlg.open = True
+        page.update()
+
     def show_export_dialog():
         range_radio = ft.RadioGroup(
             content=ft.Column([
@@ -624,6 +665,22 @@ def main(page: ft.Page):
             page.update()
             return
 
+        # Discoverability hint
+        history_list_column.controls.append(
+            ft.Container(
+                padding=ft.padding.only(left=8, top=2, bottom=4),
+                content=ft.Row([
+                    ft.Icon(ft.Icons.INFO_OUTLINE, size=14, color=ft.Colors.GREY_600),
+                    ft.Text(
+                        t("history_rename_hint", current_lang),
+                        size=12,
+                        color=ft.Colors.GREY_600,
+                        italic=True,
+                    ),
+                ], spacing=6),
+            )
+        )
+
         # Group entries by date
         current_date_group = None
         for idx, entry in enumerate(history_entries):
@@ -693,6 +750,15 @@ def main(page: ft.Page):
                 )
                 action_buttons.append(undo_btn)
 
+            edit_btn = ft.IconButton(
+                icon=ft.Icons.EDIT_OUTLINED,
+                icon_color=ft.Colors.TEAL_700,
+                icon_size=20,
+                tooltip=t("history_rename_tooltip", current_lang),
+                on_click=lambda ev, e=entry: show_rename_dialog(e),
+            )
+            action_buttons.append(edit_btn)
+
             del_btn = ft.IconButton(
                 icon=ft.Icons.DELETE_OUTLINE,
                 icon_color=ft.Colors.RED_400,
@@ -731,23 +797,42 @@ def main(page: ft.Page):
                 ], spacing=4),
             )
 
+            entry_name = entry.get("name")
+            if entry_name:
+                title_control = ft.Text(
+                    entry_name,
+                    size=16,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.TEAL_900,
+                    no_wrap=True,
+                    overflow=ft.TextOverflow.ELLIPSIS,
+                )
+                subtitle_control = ft.Text(
+                    f"{fmt(entry.get('bill', 0))}  •  {time_str}  •  {t('history_change_label', current_lang, amount=fmt(entry.get('change', 0)))}",
+                    size=12,
+                    color=ft.Colors.GREY_600,
+                )
+            else:
+                title_control = ft.Text(
+                    fmt(entry.get("bill", 0)),
+                    size=17,
+                    weight=ft.FontWeight.BOLD,
+                    color=ft.Colors.TEAL_900,
+                )
+                subtitle_control = ft.Text(
+                    f"{time_str}  •  {t('history_change_label', current_lang, amount=fmt(entry.get('change', 0)))}",
+                    size=12,
+                    color=ft.Colors.GREY_600,
+                )
+
             tile = ft.ExpansionTile(
                 leading=ft.Icon(
                     ft.Icons.PAYMENTS_OUTLINED,
                     color=ft.Colors.TEAL_700,
                     size=24,
                 ),
-                title=ft.Text(
-                    fmt(entry.get("bill", 0)),
-                    size=17,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.TEAL_900,
-                ),
-                subtitle=ft.Text(
-                    f"{time_str}  •  {t('history_change_label', current_lang, amount=fmt(entry.get('change', 0)))}",
-                    size=12,
-                    color=ft.Colors.GREY_600,
-                ),
+                title=title_control,
+                subtitle=subtitle_control,
                 trailing=ft.Text(
                     t("history_paid_label", current_lang, amount=fmt(entry.get("total_paid", 0))),
                     size=13,
@@ -763,7 +848,10 @@ def main(page: ft.Page):
             history_list_column.controls.append(
                 ft.Card(
                     elevation=1,
-                    content=tile,
+                    content=ft.GestureDetector(
+                        content=tile,
+                        on_long_press_start=lambda ev, e=entry: show_rename_dialog(e),
+                    ),
                 )
             )
 

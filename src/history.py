@@ -53,9 +53,10 @@ def create_entry(
     wallet_total_after: int,
     timestamp: str = None,
     entry_id: str = None,
+    name: str = None,
 ) -> dict:
     """Creates a validated payment history entry dictionary."""
-    return {
+    data = {
         "id": entry_id or str(uuid.uuid4()),
         "timestamp": timestamp or datetime.now().isoformat(),
         "bill": int(bill),
@@ -66,6 +67,10 @@ def create_entry(
         "mode": str(mode),  # "fast" or "optimize_notes"
         "wallet_total_after": int(wallet_total_after),
     }
+    cleaned_name = (name or "").strip()[:60]
+    if cleaned_name:
+        data["name"] = cleaned_name
+    return data
 
 def add_entry(entries: list[dict], entry: dict, path=None) -> list[dict]:
     """Prepends a new history entry, caps at 500, saves to disk, and returns updated list."""
@@ -77,6 +82,25 @@ def add_entry(entries: list[dict], entry: dict, path=None) -> list[dict]:
 def delete_entry(entries: list[dict], entry_id: str, path=None) -> list[dict]:
     """Deletes a single entry by id without altering wallet state. Saves and returns updated list."""
     updated = [e for e in entries if e.get("id") != entry_id]
+    save_history(updated, path=path)
+    return updated
+
+def rename_entry(entries: list[dict], entry_id: str, new_name: str, path=None) -> list[dict]:
+    """Renames an entry by id. Trims whitespace and caps at 60 characters.
+    An empty name removes the custom name. Does not alter wallet state. Saves and returns updated list.
+    """
+    cleaned_name = (new_name or "").strip()[:60]
+    updated = []
+    for entry in entries:
+        if entry.get("id") == entry_id:
+            e = dict(entry)
+            if cleaned_name:
+                e["name"] = cleaned_name
+            else:
+                e.pop("name", None)
+            updated.append(e)
+        else:
+            updated.append(entry)
     save_history(updated, path=path)
     return updated
 
