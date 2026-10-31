@@ -16,6 +16,14 @@ CoinTrans is a 100% offline mobile application designed to optimize cash and coi
   - Monthly spending summary with payment counts.
   - One-tap **Undo** for the latest payment, accurately restoring your previous wallet balances.
   - Delete individual entries or clear all history.
+- **Excel Export (.xlsx)**:
+  - Export transactions into structured, professionally formatted spreadsheets using pure-Python `XlsxWriter`.
+  - Filter by date range: **All Time**, **This Month**, or **Last Month**.
+  - Three localized sheets:
+    - **Payments**: Ledger with real Excel dates, formatted currency, calculation mode, and coin breakdowns.
+    - **Details**: Tidy/long format optimized for Pivot Tables (`Payment ID`, `Date`, `Kind`, `Denomination`, `Count`, `Subtotal`).
+    - **Summary**: Monthly expenditure totals with average bills, plus denomination usage analysis (handed over vs received).
+  - Direct in-app file launcher (`page.launch_url`) to immediately view in Microsoft Excel or Google Sheets.
 - **Internationalization (i18n)**:
   - English (`en`), Japanese (`ja`), and Vietnamese (`vi`).
   - Seamless in-app language switching via the settings gear icon without requiring an app restart.
@@ -55,13 +63,15 @@ coin_app/
 │   ├── assets/
 │   │   └── icon.png          # Bundled asset copy
 │   ├── core.py               # Payment algorithm & core data models
+│   ├── export.py             # Excel history workbook generator (XlsxWriter)
 │   ├── history.py            # Payment history tracking & statistics
 │   ├── i18n.py               # Localization tables (en, ja, vi) & helper
 │   ├── main.py               # Flet mobile user interface & navigation
 │   └── test_core.py          # Comprehensive unit tests
 ├── .gitignore                # Git ignore patterns
 ├── CHANGELOG.md              # Version release history
-├── pyproject.toml            # Project metadata & Flet packaging options
+├── LICENSE                   # MIT open-source license
+├── pyproject.toml            # Project metadata & packaging options
 └── README.md                 # Project documentation
 ```
 
@@ -85,11 +95,12 @@ Cash registers in Japan give change using a greedy strategy (the fewest coins an
 
 ## Data Storage
 
-Data is saved as JSON files in the platform application data directory (`FLET_APP_STORAGE_DATA`, falling back to the user home directory). All write operations use atomic writes (`.tmp` file followed by an atomic rename) wrapped in exception handlers to prevent data corruption.
+Data is saved locally in the platform application data directory (`FLET_APP_STORAGE_DATA`, falling back to the user home directory). All JSON write operations use atomic writes (`.tmp` file followed by an atomic rename) wrapped in exception handlers to prevent data corruption.
 
 - `wallet.json`: Map of denomination amounts to quantities currently in your wallet.
 - `settings.json`: User preferences including `prefer_notes` (boolean) and `language` (`"en"`, `"ja"`, or `"vi"`).
 - `history.json`: List of up to 500 recent transactions containing unique IDs, ISO timestamps, bill amounts, breakdowns, mode, and wallet balance.
+- `exports/`: Generated Excel reports named `cointrans_YYYY-MM-DD.xlsx`.
 
 ---
 
@@ -98,6 +109,7 @@ Data is saved as JSON files in the platform application data directory (`FLET_AP
 ### Prerequisites
 - Python 3.10, 3.11, or 3.12
 - [Flet](https://pypi.org/project/flet/) version `0.28.3`
+- [XlsxWriter](https://pypi.org/project/XlsxWriter/) version `3.2.0`
 
 ### Installation & Execution
 ```bash
@@ -106,7 +118,7 @@ git clone https://github.com/Sirr203/CoinTransfer_App.git
 cd CoinTransfer_App
 
 # Install dependencies
-pip install "flet==0.28.3"
+pip install "flet==0.28.3" "XlsxWriter==3.2.0"
 
 # Run the desktop version
 flet run src/main.py
@@ -156,3 +168,9 @@ To contribute translations:
 3. Ensure every key and `{placeholder}` in `en` matches in all languages.
 4. Run `python src/test_core.py` to verify that parity tests pass.
 5. Submit a pull request.
+
+---
+
+## License
+
+This project is open-source software licensed under the [MIT License](LICENSE).

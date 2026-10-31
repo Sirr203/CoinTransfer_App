@@ -5,6 +5,25 @@ All notable changes to the CoinTrans project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-31
+
+### Added
+- Excel export functionality (`.xlsx`) via pure-Python `src/export.py` using `XlsxWriter`.
+- Three localized spreadsheet tabs:
+  1. **Payments**: Complete ledger with real Excel dates, formatted currency, calculation mode, and coin breakdowns.
+  2. **Details**: Tidy/long format designed for pivot tables (payment id, date, kind, denomination, count, subtotal).
+  3. **Summary**: Monthly expenditure totals with average bills, plus denomination usage analysis (handed over vs received).
+- Date range picker for exports: "All Time", "This Month", and "Last Month".
+- Friendly empty-state handling when no records exist for a selected range.
+- Post-export success dialog with file path display and direct "Open File" launcher button.
+- Comprehensive unit tests verifying multi-sheet output, row counts, cell types, and arithmetic parity.
+- MIT License file for open-source distribution.
+
+### Changed
+- Added `XlsxWriter==3.2.0` pure-Python dependency.
+- Updated `.gitignore` to prevent exporting temporary `.xlsx` files into version control.
+- Bumped project version to `0.4.0`.
+
 ## [0.3.0] - 2026-10-30
 
 ### Added

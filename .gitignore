@@ -10,4 +10,6 @@ dist/
 wallet.json
 settings.json
 history.json
+*.xlsx
+exports/
 
